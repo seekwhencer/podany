@@ -12,6 +12,30 @@
   transition: all 0.2s ease;
 }
 
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: var(--radius-full);
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  .btn-subtext {
+    position: absolute;
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+  }
+}
+
 .btn-primary {
   background: var(--primary);
   color: var(--primary-fg, #141414);

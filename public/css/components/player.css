@@ -108,30 +108,6 @@
       align-items: center;
       gap: 1.25rem;
 
-      .btn-icon {
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.35rem;
-        border-radius: var(--radius-full);
-        transition: color 0.2s;
-
-        &:hover {
-          color: var(--text-primary);
-        }
-
-        .btn-subtext {
-          position: absolute;
-          font-size: var(--fs-2xs);
-          font-weight: 700;
-        }
-      }
-
       .btn-play-pause {
         width: 42px;
         height: 42px;
