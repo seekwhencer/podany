@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'node:path';
 import { defaults } from './defaults.js';
 
 const REQUIRED = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'APP_URL', 'SESSION_SECRET'];
@@ -23,6 +24,8 @@ class Config {
   constructor(env = process.env) {
     this.port = toInt(env.PORT, defaults.port);
     this.host = env.HOST || defaults.host;
+
+    this.downloadStorageDir = path.resolve(env.DOWNLOADS_DIR || defaults.downloadStorageDir);
 
     this.dbHost = this._require(env.DB_HOST, 'DB_HOST');
     this.dbPort = toInt(env.DB_PORT, defaults.dbPort);

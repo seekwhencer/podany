@@ -1,5 +1,8 @@
+import path from 'node:path';
+
 export const defaults = {
   port: 8788,
+  downloadStorageDir: path.join(process.cwd(), 'downloads'),
   host: '0.0.0.0',
   dbPort: 3306,
   dbPoolMax: 10,
