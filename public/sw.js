@@ -1,10 +1,10 @@
-const CACHE_NAME = 'podany-v2';
+const CACHE_NAME = 'podany-v3';
 const AUDIO_CACHE_NAME = 'podany-audio-v1';
 
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/style.css',
+   '/css/index.css',
   '/dist/bundle.js',
   '/manifest.webmanifest',
   '/icon.svg'

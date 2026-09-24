@@ -1,0 +1,139 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  font-family: var(--font-family);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  padding-bottom: 2rem;
+  transition: padding-bottom 0.3s ease;
+
+  body.has-active-episode & {
+    padding-bottom: 130px;
+  }
+}
+
+.main-content {
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem 2rem 1.5rem;
+  flex: 1;
+}
+
+.tab-panel {
+  display: none;
+
+  &.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+select {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.9rem;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  outline: none;
+  cursor: pointer;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton-card {
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  align-items: center;
+}
+
+.skeleton-art {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
+.skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--border-light);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.timeline-sentinel {
+  height: 20px;
+  width: 100%;
+  margin: 0.5rem 0;
+}

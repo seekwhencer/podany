@@ -1,0 +1,354 @@
+@media (max-width: 768px) {
+  .app-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "logo actions"
+      "search search"
+      "nav nav";
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .logo-area {
+    grid-area: logo;
+    min-width: 0;
+  }
+
+  .header-actions {
+    grid-area: actions;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .user-status-pill {
+    max-width: none;
+    padding: 0.35rem 0.55rem;
+    font-size: var(--fs-sm);
+  }
+
+  .user-status-pill.is-expanded {
+    max-width: 220px;
+    padding: 0.35rem 0.65rem;
+  }
+
+  #user-email-label {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  .header-search {
+    grid-area: search;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .header-search .search-bar {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .nav-tabs {
+    grid-area: nav;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.2rem;
+    gap: 0.2rem;
+  }
+
+  .nav-tab {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    padding: 0.4rem 0.5rem;
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+  }
+
+  .btn-header-add {
+    padding: 0.35rem 0.6rem;
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+  }
+
+  .app-container {
+    padding-bottom: 70px;
+  }
+
+  body.has-active-episode .app-container {
+    padding-bottom: 170px;
+  }
+
+  .main-content {
+    padding: 0 0.5rem 1rem 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .episode-list,
+  .shelf-grid,
+  .feeds-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .episode-card {
+    padding: 0.65rem 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .episode-card-top {
+    gap: 0.5rem;
+  }
+
+  .episode-artwork {
+    width: 40px;
+    height: 40px;
+  }
+
+  .episode-podcast-name {
+    font-size: var(--fs-xs);
+  }
+
+  .episode-title {
+    font-size: var(--fs-sm);
+    line-height: 1.25;
+  }
+
+  .episode-desc {
+    font-size: var(--fs-xs);
+    line-height: 1.25;
+  }
+
+  .episode-footer {
+    padding-top: 0.3rem;
+  }
+
+  .episode-meta {
+    font-size: var(--fs-xs);
+    gap: 0.35rem;
+  }
+
+  .btn-play-ep,
+  .btn-mark-played,
+  .btn-queue-ep,
+  .btn-download-ep {
+    width: 28px;
+    height: 28px;
+  }
+
+  .btn-play-ep svg,
+  .btn-mark-played svg,
+  .btn-queue-ep svg,
+  .btn-download-ep svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .continue-shelf {
+    padding: 0;
+    margin-bottom: 1.5rem;
+  }
+
+  .bottom-action-dock {
+    bottom: 5px;
+    right: 0.5rem;
+    left: 0.5rem;
+    border-radius: var(--radius-sm);
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0.35rem 0.5rem;
+    gap: 0.35rem;
+    max-width: calc(100vw - 1rem);
+    box-sizing: border-box;
+    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .bottom-action-dock::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dock-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  body.has-active-episode .bottom-action-dock {
+    bottom: 115px;
+  }
+
+  body.has-active-episode.has-mini-player .bottom-action-dock {
+    bottom: 56px;
+  }
+
+  .bottom-action-dock .chip-filter {
+    padding: 0.35rem 0.65rem;
+    font-size: var(--fs-sm);
+    flex-shrink: 0;
+  }
+
+  .bottom-action-dock select {
+    font-size: var(--fs-sm);
+    padding: 0.35rem 0.6rem;
+    flex-shrink: 0;
+  }
+
+  .btn-dock-refresh {
+    font-size: var(--fs-sm);
+    padding: 0.35rem 0.65rem;
+    flex-shrink: 0;
+  }
+
+  .player-mini {
+    height: 50px;
+    padding: 0 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .mini-artwork {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mini-title {
+    font-size: var(--fs-sm);
+  }
+
+  .mini-podcast {
+    font-size: var(--fs-xs);
+  }
+
+  .player-bar {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    padding: 0.6rem 0.75rem;
+    gap: 0.4rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    transform: translateY(105%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .player-bar.active-episode {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .player-track-info {
+    grid-column: 1 / 2;
+  }
+
+  .player-right-options {
+    grid-column: 2 / 3;
+  }
+
+  .player-center-controls {
+    grid-column: 1 / 3;
+    width: 100%;
+  }
+
+  .time-scrubber {
+    max-width: 100%;
+  }
+
+  /* Mobile empty state & search directory overflow fixes */
+  .empty-state {
+    padding: 1.5rem 0.85rem;
+    margin: 1rem auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .empty-quick-add {
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .quick-add-input-wrap {
+    padding: 0.25rem 0.35rem 0.25rem 0.5rem;
+    gap: 0.35rem;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .quick-add-input-wrap input {
+    font-size: var(--fs-sm);
+    min-width: 0;
+  }
+
+  .btn-quick-submit {
+    padding: 0.35rem 0.65rem;
+    font-size: var(--fs-sm);
+  }
+
+  .dir-search-card {
+    padding: 0.5rem 0.6rem;
+    gap: 0.5rem;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .dir-search-art {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+  }
+
+  .dir-search-title {
+    font-size: var(--fs-sm);
+  }
+
+  .dir-search-artist {
+    font-size: var(--fs-xs);
+  }
+
+  .starter-suggestions-section {
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+
+  .starter-suggestions-grid {
+    gap: 0.35rem;
+  }
+
+  .starter-suggestion-chip {
+    padding: 0.35rem 0.65rem;
+    font-size: var(--fs-sm);
+  }
+
+  .modal-card {
+    padding: 1.25rem 1rem;
+    width: 95%;
+    max-width: 95%;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+}

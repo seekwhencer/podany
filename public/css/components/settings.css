@@ -1,0 +1,121 @@
+.settings-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+
+  h3 {
+    font-size: var(--fs-md);
+    font-weight: 450;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: var(--text-secondary);
+    font-size: var(--fs-md);
+    font-weight: 300;
+    margin-bottom: 1rem;
+  }
+
+  .settings-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .offline-storage-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+
+    .offline-storage-count {
+      font-size: var(--fs-sm);
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+  }
+
+  .offline-episodes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    max-height: 280px;
+    overflow-y: auto;
+
+    .offline-ep-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.85rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      gap: 0.75rem;
+
+      .offline-ep-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+        flex: 1;
+
+        .offline-ep-title {
+          font-size: var(--fs-sm);
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .offline-ep-sub {
+          font-size: var(--fs-sm);
+          color: var(--text-muted);
+        }
+      }
+
+      .btn-remove-download {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0.3rem 0.65rem;
+        font-size: var(--fs-sm);
+        border-radius: var(--radius-sm);
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+
+        &:hover {
+          color: #ef4444;
+          border-color: rgba(239, 68, 68, 0.4);
+          background: rgba(239, 68, 68, 0.08);
+        }
+      }
+    }
+  }
+}
+
+.theme-switch-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.btn-theme {
+  text-transform: capitalize;
+  padding: 0.5rem 1.25rem;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-full);
+
+  &.active {
+    background: var(--text-primary);
+    color: var(--bg-dark);
+    border-color: var(--text-primary);
+    font-weight: 600;
+  }
+}
