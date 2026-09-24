@@ -9,6 +9,8 @@ import { migrate } from './db/migrator.js';
 import { createCors } from './middleware/cors.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createAppRouter } from './routes/index.js';
+import { User } from './models/User.js';
+import { hashPassword } from './utils/password.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -38,9 +40,11 @@ export function createApp(deps = {}) {
 
   // SPA fallback: serve index.html for non-API routes so magic-link callbacks
   // (/auth/verify/?token=…) and client-side deep links resolve to the app.
+  // In development mode, serve dev.html instead.
+  const homePage = config.environment === 'development' ? 'dev.html' : 'index.html';
   app.use((req, res, next) => {
     if (req.originalUrl.startsWith('/api')) return next();
-    res.sendFile(join(PUBLIC_DIR, 'index.html'));
+    res.sendFile(join(PUBLIC_DIR, homePage));
   });
 
   app.use(notFoundHandler);
@@ -69,6 +73,20 @@ async function waitForDb(retries = 30, delayMs = 1000) {
   }
 }
 
+export async function seedDefaultUser() {
+  if (!config.defaultUserEnabled) return false;
+  const users = new User();
+  const id = users.generateId('usr_');
+  const passwordHash = config.defaultUserPassword ? hashPassword(config.defaultUserPassword) : null;
+  const result = await users.seedDefault({
+    id,
+    email: config.defaultUserEmail,
+    passwordHash,
+    color: config.defaultUserColor
+  });
+  return result.seeded;
+}
+
 export async function start(deps = {}) {
   const app = createApp(deps);
 
@@ -80,6 +98,14 @@ export async function start(deps = {}) {
     console.error('[server] Database migration failed:', err.message);
     process.exitCode = 1;
     throw err;
+  }
+
+  try {
+    if (await seedDefaultUser()) {
+      console.log('[server] Seeded default user.');
+    }
+  } catch (err) {
+    console.warn('[server] Could not seed default user:', err.message);
   }
 
   const server = app.listen(config.port, config.host, () => {

@@ -78,7 +78,21 @@ const fakeDownloads = {
     return record;
   },
   async remove(userId, episodeGuid) { return { success: true, removed: episodeGuid }; },
-  async deleteById(id) { return { success: true, id }; }
+  async deleteById(id) { return { success: true, id } }
+};
+
+const fakeUser = {
+  colors: {},
+  async getOptions(userId) { return { color: this.colors[userId] ?? '#d8cdbe' }; },
+  async updateOptions(userId, { color }) {
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      const err = new Error('color must be a valid hex color like #aabbcc.');
+      err.status = 400;
+      throw err;
+    }
+    this.colors[userId] = color;
+    return { color: this.colors[userId] };
+  }
 };
 
 function buildServer(deps) {
@@ -272,4 +286,54 @@ test('downloads delete by id succeeds for the owner', async (t) => {
   const res = await request(server, 'DELETE', '/api/downloads/dl_1', { headers: { 'x-session-token': 't' } });
   assert.equal(res.status, 200);
   assert.deepEqual(res.body, { success: true, id: 'dl_1' });
+});
+
+test('user options require authentication (401 without token)', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, userService: fakeUser });
+  t.after(() => server.close());
+  const res = await request(server, 'GET', '/api/user/options');
+  assert.equal(res.status, 401);
+});
+
+test('user options GET returns the current color', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, userService: fakeUser });
+  fakeUser.colors['usr_1'] = '#00ff80';
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await request(server, 'GET', '/api/user/options', { headers: { 'x-session-token': 't' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { color: '#00ff80' });
+});
+
+test('user options PATCH updates the color', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, userService: fakeUser });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await request(server, 'PATCH', '/api/user/options', { headers: { 'x-session-token': 't' }, body: { color: '#abcdef' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { color: '#abcdef' });
+  assert.equal(fakeUser.colors['usr_1'], '#abcdef');
+});
+
+test('user options PATCH rejects an invalid color with 400', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, userService: fakeUser });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await request(server, 'PATCH', '/api/user/options', { headers: { 'x-session-token': 't' }, body: { color: 'not-a-color' } });
+  assert.equal(res.status, 400);
+});
+
+test('auth login with a password calls loginWithPassword and sets the cookie', async (t) => {
+  const passwordAuth = { ...fakeAuth };
+  passwordAuth.loginWithPassword = async ({ email, password }) => ({
+    success: true,
+    sessionToken: `pw-${password}`,
+    user: { id: 'usr_1', email }
+  });
+  const server = buildServer({ auth: passwordAuth, sessions: new Map(), sync: fakeSync, feed: {} });
+  t.after(() => server.close());
+  const res = await request(server, 'POST', '/api/auth/login', { body: { email: 'local@example.com', password: 'hunter2' } });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.sessionToken, 'pw-hunter2');
+  assert.ok(res.setCookie.some((c) => c.startsWith('podcast_session=')));
 });

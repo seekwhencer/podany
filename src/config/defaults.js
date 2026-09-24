@@ -9,7 +9,12 @@ export const defaults = {
   cookieSecure: true,
   rateLimitLinksPerHour: 60,
   corsOrigin: '*',
-  authMode: 'magic'
+  authMode: 'local',
+  environment: 'production',
+  magicLinkEnabled: false,
+  defaultUserColor: '#d8cdbe',
+  defaultUserEmail: '',
+  defaultUserPassword: ''
 };
 
 export default defaults;

@@ -5,6 +5,7 @@ import { EmailService } from './emailService.js';
 import { SessionStore } from './sessionStore.js';
 import { RateLimiter } from './rateLimiter.js';
 import { hashToken, generateToken } from '../utils/crypto.js';
+import { verifyPassword } from '../utils/password.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOKEN_TTL_SECONDS = 15 * 60;
@@ -135,6 +136,31 @@ export class AuthService {
       const newUserId = this.users.generateId('usr_');
       await this.users.create({ id: newUserId, email });
       user = { id: newUserId, email };
+    }
+
+    const { raw } = this.sessions.issue(user.id);
+    return { success: true, sessionToken: raw, user };
+  }
+
+  async loginWithPassword({ email: rawEmail, password }) {
+    if (!this.localLoginEnabled) {
+      throw new AuthError('Local login is not enabled.', 403);
+    }
+
+    const email = String(rawEmail || '').trim().toLowerCase();
+    if (!email || !EMAIL_RE.test(email)) {
+      throw new AuthError('Valid email address required.', 400);
+    }
+    if (!password || String(password).length === 0) {
+      throw new AuthError('Password is required.', 400);
+    }
+
+    const user = await this.users.findByEmailWithPassword(email);
+    if (!user || !user.password_hash) {
+      throw new AuthError('Invalid email or password.', 401);
+    }
+    if (!verifyPassword(String(password), user.password_hash)) {
+      throw new AuthError('Invalid email or password.', 401);
     }
 
     const { raw } = this.sessions.issue(user.id);

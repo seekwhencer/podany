@@ -2,6 +2,7 @@ import './testEnv.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AuthService } from './authService.js';
+import { hashPassword } from '../utils/password.js';
 
 class InMemoryUser {
   constructor() {
@@ -18,8 +19,13 @@ class InMemoryUser {
   async findById(id) {
     return this.rows.find((u) => u.id === id) ?? null;
   }
-  async create({ id, email }) {
-    const user = { id, email, created_at: Math.floor(Date.now() / 1000) };
+  async findByEmailWithPassword(email) {
+    const user = await this.findByEmail(email);
+    if (!user) return null;
+    return { ...user, password_hash: user.passwordHash ?? null };
+  }
+  async create({ id, email, passwordHash = null }) {
+    const user = { id, email, color: '#d8cdbe', passwordHash, created_at: Math.floor(Date.now() / 1000) };
     this.rows.push(user);
     return { affectedRows: 1 };
   }
@@ -134,4 +140,50 @@ test('sendLoginLink enforces the per-email link rate limit', async () => {
     await auth.sendLoginLink({ email: 'rate@example.com' });
   }
   await assert.rejects(() => auth.sendLoginLink({ email: 'rate@example.com' }), /Too many login attempts/);
+});
+
+test('loginWithPassword authenticates a user with a matching password', async () => {
+  const users = new InMemoryUser();
+  await users.create({ id: 'usr_1', email: 'pw@example.com', passwordHash: hashPassword('correct-horse') });
+  const auth = buildAuth({ users, localLoginEnabled: true });
+  const result = await auth.loginWithPassword({ email: 'Pw@Example.com ', password: 'correct-horse' });
+  assert.equal(result.success, true);
+  assert.match(result.sessionToken, /^[0-9a-f]{64}$/);
+  assert.equal(result.user.email, 'pw@example.com');
+});
+
+test('loginWithPassword rejects a wrong password', async () => {
+  const users = new InMemoryUser();
+  await users.create({ id: 'usr_1', email: 'pw@example.com', passwordHash: hashPassword('correct-horse') });
+  const auth = buildAuth({ users, localLoginEnabled: true });
+  await assert.rejects(
+    () => auth.loginWithPassword({ email: 'pw@example.com', password: 'nope' }),
+    /Invalid email or password/
+  );
+});
+
+test('loginWithPassword rejects a user without a stored password', async () => {
+  const users = new InMemoryUser();
+  await users.create({ id: 'usr_1', email: 'nopw@example.com' });
+  const auth = buildAuth({ users, localLoginEnabled: true });
+  await assert.rejects(
+    () => auth.loginWithPassword({ email: 'nopw@example.com', password: 'whatever' }),
+    /Invalid email or password/
+  );
+});
+
+test('loginWithPassword requires a password argument', async () => {
+  const auth = buildAuth({ localLoginEnabled: true });
+  await assert.rejects(
+    () => auth.loginWithPassword({ email: 'x@example.com', password: '' }),
+    /Password is required/
+  );
+});
+
+test('loginWithPassword is blocked when local login is disabled', async () => {
+  const auth = buildAuth({ localLoginEnabled: false });
+  await assert.rejects(
+    () => auth.loginWithPassword({ email: 'x@example.com', password: 'whatever' }),
+    /not enabled/
+  );
 });

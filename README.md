@@ -58,7 +58,10 @@ podany/
 │   └── utils/                  # crypto, url (SSRF guard), response helpers
 ├── public/                     # Static frontend + bundled JS
 │   ├── index.html
-│   ├── style.css
+│   ├── css/                    # Modular CSS (index.css imports variables, typo, components/)
+│   │   ├── variables.css       # :root theme tokens
+│   │   ├── typo.css            # base reset + layout primitives
+│   │   └── components/         # per-component nested CSS (buttons, header, player, ...)
 │   ├── sw.js                   # PWA service worker
 │   ├── auth/verify/index.html  # Standalone magic-link verify page
 │   ├── js/                     # Modular frontend source (import/export classes)

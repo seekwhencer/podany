@@ -43,6 +43,13 @@ class Config {
     this.rateLimitLinksPerHour = Math.max(0, toInt(env.RATE_LIMIT_LINKS_PER_HOUR, defaults.rateLimitLinksPerHour));
     this.corsOrigin = env.CORS_ORIGIN || defaults.corsOrigin;
 
+    this.defaultUserEmail = env.DEFAULT_USER_EMAIL || null;
+    this.defaultUserPassword = env.DEFAULT_USER_PASSWORD || null;
+    this.defaultUserColor = env.DEFAULT_USER_COLOR || defaults.defaultUserColor;
+    this.defaultUserEnabled = Boolean(this.defaultUserEmail);
+
+    this.environment = (env.ENVIRONMENT || defaults.environment).toLowerCase();
+
     this.authMode = (env.AUTH_MODE || defaults.authMode).toLowerCase();
     if (!AUTH_MODES.includes(this.authMode)) {
       throw new Error(`AUTH_MODE must be one of ${AUTH_MODES.join(', ')}, got "${this.authMode}".`);
@@ -50,7 +57,8 @@ class Config {
 
     this.resendEnabled = Boolean(this.resendApiKey);
     this.localLoginEnabled = this.authMode === 'local' || this.authMode === 'mixed';
-    this.magicLinkEnabled = this.authMode === 'magic' || this.authMode === 'mixed';
+    this.magicLinkEnabled = toBool(env.MAGIC_LINK_ENABLED, defaults.magicLinkEnabled)
+      && (this.authMode === 'magic' || this.authMode === 'mixed');
   }
 
   _require(value, name) {

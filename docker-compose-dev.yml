@@ -18,6 +18,8 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change-me-root}
     volumes:
       - podany-mariadb:/var/lib/mysql
+    ports:
+      - "3306:3306"
     healthcheck:
       test:
         - CMD
@@ -38,7 +40,9 @@ services:
     container_name: podany_app
     depends_on: 
       - podany_db
+    command: npm run dev
     environment:
+      ENVIRONMENT: development
       PORT: "8788"
       HOST: "0.0.0.0"
       DB_HOST: podany_db

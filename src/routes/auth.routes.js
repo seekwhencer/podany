@@ -28,6 +28,9 @@ export function createAuthRoutes(deps = {}) {
 
   router.post('/send-link', async (req, res, next) => {
     try {
+      if (!config.magicLinkEnabled) {
+        return json(res, 403, { error: 'Magic link login is not enabled.' });
+      }
       const { email, origin } = req.body ?? {};
       const result = await auth.sendLoginLink({ email, origin });
       return json(res, 200, result);
@@ -49,8 +52,11 @@ export function createAuthRoutes(deps = {}) {
 
   router.post('/login', async (req, res, next) => {
     try {
-      const { email } = req.body ?? {};
-      const result = await auth.login({ email });
+      const { email, password } = req.body ?? {};
+      const hasPassword = password !== undefined && String(password).length > 0;
+      const result = hasPassword
+        ? await auth.loginWithPassword({ email, password })
+        : await auth.login({ email });
       setSessionCookie(res, result.sessionToken);
       return json(res, 200, { success: true, user: result.user, sessionToken: result.sessionToken });
     } catch (err) {

@@ -5,6 +5,7 @@ import { SessionStore } from '../services/sessionStore.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAuthRoutes } from './auth.routes.js';
 import { createSyncRoutes } from './sync.routes.js';
+import { createUserRoutes } from './user.routes.js';
 import { createFeedRoutes, createAudioProxyRoutes, createDownloadsRoutes } from './feed.routes.js';
 
 export function createAppRouter(deps = {}) {
@@ -17,6 +18,7 @@ export function createAppRouter(deps = {}) {
 
   router.use('/auth', createAuthRoutes({ ...authDeps, sessions, auth }));
   router.use('/sync', requireAuth, createSyncRoutes({ sync: deps.sync }));
+  router.use('/user', requireAuth, createUserRoutes({ userService: deps.userService }));
   router.use('/feed', createFeedRoutes(deps.feed ?? {}));
   router.use('/audio-proxy', createAudioProxyRoutes(deps.feed ?? {}));
   router.use('/downloads', createDownloadsRoutes({ ...(deps.feed ?? {}), authDeps, sessions, auth }));
