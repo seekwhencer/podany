@@ -6,7 +6,6 @@ import { DownloadsService } from '../services/downloadsService.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { isValidExternalUrl } from '../utils/url.js';
 import { json } from '../utils/response.js';
-import config from '../config/index.js';
 
 function isString(value) {
   return typeof value === 'string' && value.length > 0;
@@ -36,6 +35,7 @@ export function createFeedRoutes(deps = {}) {
 
 export function createAudioProxyRoutes(deps = {}) {
   const router = Router();
+  const config = deps.config;
   const audioProxy = deps.audioProxy ?? new AudioProxyService(deps);
 
   router.get('/', async (req, res, next) => {

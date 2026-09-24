@@ -1,16 +1,22 @@
 import mysql from 'mysql2/promise';
-import config from '../config/index.js';
+
+let dbConfig = null;
+
+export function configureDb(config) {
+  dbConfig = config;
+}
 
 export class MySQLPool {
   constructor(options = {}) {
+    const c = options.config ?? dbConfig;
     this.options = {
-      host: options.host ?? config.dbHost,
-      port: options.port ?? config.dbPort,
-      user: options.user ?? config.dbUser,
-      password: options.password ?? config.dbPassword,
-      database: options.database ?? config.dbName,
+      host: options.host ?? c.dbHost,
+      port: options.port ?? c.dbPort,
+      user: options.user ?? c.dbUser,
+      password: options.password ?? c.dbPassword,
+      database: options.database ?? c.dbName,
       waitForConnections: true,
-      connectionLimit: options.connectionLimit ?? config.dbPoolMax,
+      connectionLimit: options.connectionLimit ?? c.dbPoolMax,
       queueLimit: 0,
       connectTimeout: options.connectTimeout ?? 10000,
       enableKeepAlive: true,
@@ -74,7 +80,7 @@ const db = new Proxy(
   {},
   {
     get(_target, prop) {
-      if (instance === null) instance = new MySQLPool();
+      if (instance === null) instance = new MySQLPool({ config: dbConfig });
       return instance[prop];
     }
   }

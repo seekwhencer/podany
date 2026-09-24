@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { AuthService } from '../services/authService.js';
 import { SessionStore } from '../services/sessionStore.js';
 import { createAuthMiddleware } from './auth.js';
+import config from '../config/index.js';
 
 class InMemoryUser {
   constructor() {
@@ -76,8 +77,8 @@ function build() {
   const tokens = new InMemoryToken();
   const sessions = new SessionStore();
   const email = { enabled: false };
-  const auth = new AuthService({ users, tokens, email, sessions });
-  const requireAuth = createAuthMiddleware({ users, tokens, email, sessions });
+  const auth = new AuthService({ users, tokens, email, sessions, config });
+  const requireAuth = createAuthMiddleware({ users, tokens, email, sessions, config });
   return { auth, requireAuth, users };
 }
 

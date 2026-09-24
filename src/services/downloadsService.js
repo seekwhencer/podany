@@ -2,14 +2,13 @@ import { createWriteStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { Downloads } from '../models/Downloads.js';
 import { isValidExternalUrl } from '../utils/url.js';
-import config from '../config/index.js';
 
 const DEFAULT_RETENTION_DAYS = 30;
 
 export class DownloadsService {
   constructor(deps = {}) {
     this.downloads = deps.downloads ?? new Downloads();
-    this.storageDir = deps.storageDir ?? config.downloadStorageDir;
+    this.storageDir = deps.storageDir ?? deps.config?.downloadStorageDir;
     this.retentionDays = deps.retentionDays ?? DEFAULT_RETENTION_DAYS;
     this.fetchImpl = deps.fetch ?? globalThis.fetch;
   }

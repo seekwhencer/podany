@@ -1,4 +1,3 @@
-import config from '../config/index.js';
 import { User } from '../models/User.js';
 import { AuthToken } from '../models/AuthToken.js';
 import { EmailService } from './emailService.js';
@@ -40,17 +39,17 @@ function buildMagicEmailHtml(verifyUrl) {
 
 export class AuthService {
   constructor(deps = {}) {
-    this.config = config;
+    this.config = deps.config;
     this.users = deps.users ?? new User();
     this.tokens = deps.tokens ?? new AuthToken();
-    this.email = deps.email ?? new EmailService();
-    this.sessions = deps.sessions ?? new SessionStore(config.sessionTtlSeconds);
+    this.email = deps.email ?? new EmailService({ config: this.config });
+    this.sessions = deps.sessions ?? new SessionStore(this.config?.sessionTtlSeconds);
     this.rateLimiter = deps.rateLimiter ?? new RateLimiter({
       windowMs: LINKS_PER_USER_WINDOW_SECONDS * 1000,
       limit: MAX_LINKS_PER_USER
     });
-    this.localLoginEnabled = deps.localLoginEnabled ?? config.localLoginEnabled;
-    this.magicLinkEnabled = deps.magicLinkEnabled ?? config.magicLinkEnabled;
+    this.localLoginEnabled = deps.localLoginEnabled ?? this.config?.localLoginEnabled;
+    this.magicLinkEnabled = deps.magicLinkEnabled ?? this.config?.magicLinkEnabled;
   }
 
   async sendLoginLink({ email: rawEmail, origin }) {

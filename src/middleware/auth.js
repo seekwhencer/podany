@@ -1,4 +1,3 @@
-import config from '../config/index.js';
 import { AuthService } from '../services/authService.js';
 import { error } from '../utils/response.js';
 
@@ -15,19 +14,20 @@ function parseCookies(header) {
   return cookies;
 }
 
-export function getSessionToken(req) {
+export function getSessionToken(req, cookieName) {
   const header = req.headers['x-session-token'];
   const fromHeader = Array.isArray(header) ? header[0] : header;
   if (fromHeader) return fromHeader;
   const cookies = req.cookies || parseCookies(req.headers.cookie);
-  return cookies[config.sessionCookieName] || null;
+  return cookies[cookieName] || null;
 }
 
 export function createAuthMiddleware(deps = {}) {
   const auth = deps.auth ?? new AuthService(deps);
+  const cookieName = deps.config?.sessionCookieName;
 
   return async function requireAuth(req, res, next) {
-    const token = getSessionToken(req);
+    const token = getSessionToken(req, cookieName);
     if (!token) {
       return error(res, 401, 'Authentication required.');
     }
@@ -43,7 +43,3 @@ export function createAuthMiddleware(deps = {}) {
     }
   };
 }
-
-const requireAuth = createAuthMiddleware();
-
-export default requireAuth;

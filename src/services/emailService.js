@@ -1,12 +1,11 @@
-import config from '../config/index.js';
 import { defaults } from '../config/defaults.js';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 export class EmailService {
   constructor(options = {}) {
-    this.resendApiKey = options.resendApiKey ?? config.resendApiKey;
-    this.fromEmail = options.fromEmail ?? config.fromEmail ?? defaults.fromEmail;
+    this.resendApiKey = options.resendApiKey ?? options.config?.resendApiKey;
+    this.fromEmail = options.fromEmail ?? options.config?.fromEmail ?? defaults.fromEmail;
   }
 
   get enabled() {

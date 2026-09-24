@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AuthService } from './authService.js';
 import { hashPassword } from '../utils/password.js';
+import config from '../config/index.js';
 
 class InMemoryUser {
   constructor() {
@@ -62,7 +63,7 @@ function buildAuth(deps = {}) {
   const users = deps.users ?? new InMemoryUser();
   const tokens = deps.tokens ?? new InMemoryToken();
   const email = deps.email ?? { enabled: false, async send() { return { sentVia: 'local' }; } };
-  return new AuthService({ users, tokens, email, ...deps });
+  return new AuthService({ users, tokens, email, config, ...deps });
 }
 
 test('sendLoginLink creates a user and token and returns a verifyUrl in local mode', async () => {

@@ -1,34 +1,35 @@
 import { Router } from 'express';
 import { AuthService } from '../services/authService.js';
-import config from '../config/index.js';
 import { getSessionToken } from '../middleware/auth.js';
 import { json } from '../utils/response.js';
 
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.cookieSecure,
-    path: '/',
-    maxAge: config.sessionTtlSeconds * 1000
-  };
-}
-
-function setSessionCookie(res, token) {
-  res.cookie(config.sessionCookieName, token, cookieOptions());
-}
-
-function clearSessionCookie(res) {
-  res.cookie(config.sessionCookieName, '', { ...cookieOptions(), maxAge: 0 });
-}
-
 export function createAuthRoutes(deps = {}) {
   const router = Router();
+  const config = deps.config;
+  const cookieName = config?.sessionCookieName;
   const auth = deps.auth ?? new AuthService(deps);
+
+  function cookieOptions() {
+    return {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: config?.cookieSecure,
+      path: '/',
+      maxAge: (config?.sessionTtlSeconds ?? 0) * 1000
+    };
+  }
+
+  function setSessionCookie(res, token) {
+    res.cookie(cookieName, token, cookieOptions());
+  }
+
+  function clearSessionCookie(res) {
+    res.cookie(cookieName, '', { ...cookieOptions(), maxAge: 0 });
+  }
 
   router.post('/send-link', async (req, res, next) => {
     try {
-      if (!config.magicLinkEnabled) {
+      if (!config?.magicLinkEnabled) {
         return json(res, 403, { error: 'Magic link login is not enabled.' });
       }
       const { email, origin } = req.body ?? {};
@@ -66,7 +67,7 @@ export function createAuthRoutes(deps = {}) {
 
   router.post('/logout', async (req, res, next) => {
     try {
-      const token = getSessionToken(req);
+      const token = getSessionToken(req, cookieName);
       await auth.logout(token);
       clearSessionCookie(res);
       return json(res, 200, { success: true });
@@ -77,7 +78,7 @@ export function createAuthRoutes(deps = {}) {
 
   router.get('/me', async (req, res, next) => {
     try {
-      const token = getSessionToken(req);
+      const token = getSessionToken(req, cookieName);
       if (!token) {
         return json(res, 401, { error: 'Not authenticated' });
       }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import config from './config/index.js';
-import db from './db/connection.js';
+import db, { configureDb } from './db/connection.js';
 import { migrate } from './db/migrator.js';
 import { createCors } from './middleware/cors.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -15,11 +15,13 @@ import { hashPassword } from './utils/password.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
 
+configureDb(config);
+
 export function createApp(deps = {}) {
   const app = express();
   app.disable('x-powered-by');
 
-  app.use(createCors());
+  app.use(createCors({ config }));
   app.use(express.json({ limit: '1mb' }));
 
   app.use(session({
@@ -37,7 +39,7 @@ export function createApp(deps = {}) {
 
   const homePage = config.environment === 'development' ? 'dev.html' : 'index.html';
 
-  app.use('/api', createAppRouter(deps));
+  app.use('/api', createAppRouter({ ...deps, config }));
 
   // Serve the configured home page for the root path before express.static,
   // which would otherwise always serve index.html as its default document.

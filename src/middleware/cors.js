@@ -1,8 +1,7 @@
 import cors from 'cors';
-import config from '../config/index.js';
 
 export function createCors(options = {}) {
-  const allowed = options.origin ?? config.corsOrigin;
+  const allowed = options.origin ?? options.config?.corsOrigin;
 
   return cors({
     origin(req, cb) {

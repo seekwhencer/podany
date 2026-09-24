@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { ReadableStream } from 'node:stream/web';
+import config from '../config/index.js';
 import { createAppRouter } from './index.js';
 
 const fakeAuth = {
@@ -98,7 +99,7 @@ const fakeUser = {
 function buildServer(deps) {
   const app = express();
   app.use(express.json());
-  app.use('/api', createAppRouter(deps));
+  app.use('/api', createAppRouter({ ...deps, config }));
   const server = app.listen(0);
   return server;
 }
