@@ -28,7 +28,7 @@ Private podcast RSS feed aggregator and web player, self-hosted with Express and
 - **Audio & YouTube Playback**: Streams standard podcast RSS enclosures (MP3, M4A, AAC) and YouTube playlists/channels.
 - **Offline Audio Caching (PWA)**: Service worker with Range request support (`HTTP 206`) for offline listening and CacheStorage management.
 - **Cross-Device Sync**: Multi-user subscription and playback position synchronization backed by MariaDB.
-- **Passwordless Auth**: Magic link login via Resend with cryptographic token verification (optional local login for dev).
+- **Passwordless Auth**: Magic link login via Resend with cryptographic token verification; `AUTH_MODE` switches between magic-link, direct local email login, or both (`magic`\|`local`\|`mixed`). An optional seeded default user can log in with a password for local/dev use.
 - **Directory Search**: Search Apple Podcasts directory or paste direct RSS/YouTube URLs.
 - **Show Notes & Chapters**: Rich show notes with clickable links and interactive seek timestamps.
 - **Playback Controls**: Non-destructive skip (preserves position in Continue Listening), dedicated mark-as-listened button, variable speed (0.8x - 2.0x), and sleep timer.
@@ -51,17 +51,22 @@ podany/
 │   ├── server.js               # Express entrypoint: app, middleware, routes, start
 │   ├── config/                 # Config class + defaults (env vars)
 │   ├── db/                     # MariaDB pool, migrator, schema.sql, data-migration
-│   ├── models/                 # Data-access classes (User, AuthToken, Subscription, ...)
-│   ├── services/               # Business logic (Auth, Feed, Sync, AudioProxy, Downloads, Email)
+│   ├── models/                 # Data-access classes (BaseModel, User, AuthToken, Subscription, PlaybackState, Downloads)
+│   ├── services/               # Business logic (Auth, Feed, Sync, AudioProxy, Downloads, Email, User, SessionStore, RateLimiter)
 │   ├── middleware/             # auth, cors, errorHandler, rateLimit
-│   ├── routes/                 # auth, sync, feed (+ audio-proxy, downloads)
-│   └── utils/                  # crypto, url (SSRF guard), response helpers
+│   ├── routes/                 # auth, sync, user, feed (+ audio-proxy, downloads)
+│   └── utils/                  # crypto, url (SSRF guard), response, password helpers
 ├── public/                     # Static frontend + bundled JS
-│   ├── index.html
-│   ├── css/                    # Modular CSS (index.css imports variables, typo, components/)
+│   ├── index.html              # Production home page
+│   ├── dev.html                # Development home page (served when AUTH_MODE=local / no Resend key)
+│   ├── css/                    # Modular CSS (index.css imports variables, typo, forms, global, components/)
 │   │   ├── variables.css       # :root theme tokens
 │   │   ├── typo.css            # base reset + layout primitives
+│   │   ├── forms.css           # form field styling
+│   │   ├── global.css          # global/base rules
 │   │   └── components/         # per-component nested CSS (buttons, header, player, ...)
+│   ├── icon.svg                # PWA app icon
+│   ├── manifest.webmanifest    # PWA manifest
 │   ├── sw.js                   # PWA service worker
 │   ├── auth/verify/index.html  # Standalone magic-link verify page
 │   ├── js/                     # Modular frontend source (import/export classes)
@@ -162,6 +167,11 @@ All values are read by the `Config` class from process env + `.env` (see `.env.e
 | `COOKIE_SECURE` | boolean | `true` | Set `Secure` on the cookie (use `false` over plain HTTP) |
 | `RATE_LIMIT_LINKS_PER_HOUR` | number | `60` | Login links allowed per email per hour |
 | `CORS_ORIGIN` | string / `*` | `*` | Allowed CORS origin |
+| `MAGIC_LINK_ENABLED` | boolean | `true` | Enable magic-link login (disabled entirely when `false`, returns 403) |
+| `ENVIRONMENT` | `development`\|`production` | `production` | Runtime environment; `development` serves `dev.html` |
+| `DEFAULT_USER_EMAIL` | string | — | Seeds a default user on startup (idempotent); empty disables it |
+| `DEFAULT_USER_PASSWORD` | secret | — | Password for the seeded default user (`AUTH_MODE=local`/`mixed`) |
+| `DEFAULT_USER_COLOR` | string | `#d8cdbe` | Accent color for the seeded default user |
 
 Secrets are never committed; keep `.env` private.
 
@@ -175,4 +185,8 @@ Runs the Node.js built-in test runner across the backend units (services, models
 
 ## License
 
-MIT License. Copyright (c) 2026 Steffen Klaue.
+MIT License. Copyright (c) 2026 Steffen Klaue.  
+
+## Selfhosting Edition
+
+Refactoring, File-Splitting, Server, Database, Docker-Setup by Matthias Kallenbach,  [skwncr.net](https://skwncr.net) using VS Code + Kilo Code + local AI on 32G VRAM with llama.cpp and Tiel Coder 35B (MTP UD Q6) on 220K tokens context per session.
