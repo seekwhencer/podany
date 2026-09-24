@@ -16,6 +16,13 @@ export class Elements {
     this.magicEmailInput = g('magic-email-input');
     this.btnSubmitMagic = g('btn-submit-magic');
     this.magicStatusMsg = g('magic-status-msg');
+    this.authModalTitle = g('auth-modal-title');
+    this.passwordAuthForm = g('password-auth-form');
+    this.passwordEmailInput = g('password-email-input');
+    this.passwordPasswordInput = g('password-password-input');
+    this.btnSubmitPassword = g('btn-submit-password');
+    this.passwordStatusMsg = g('password-status-msg');
+    this.btnToggleLoginMode = g('btn-toggle-login-mode');
     this.userSyncStatus = g('user-sync-status');
     this.btnShowLogin = g('btn-show-login');
     this.userStatusPill = g('user-status-pill');

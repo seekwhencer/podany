@@ -99,23 +99,3 @@
     }
   }
 }
-
-.theme-switch-group {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.btn-theme {
-  text-transform: capitalize;
-  padding: 0.5rem 1.25rem;
-  font-size: var(--fs-sm);
-  border-radius: var(--radius-full);
-
-  &.active {
-    background: var(--text-primary);
-    color: var(--bg-dark);
-    border-color: var(--text-primary);
-    font-weight: 600;
-  }
-}

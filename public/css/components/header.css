@@ -256,28 +256,3 @@
     color: var(--text-primary);
   }
 }
-
-.search-bar {
-  display: flex;
-  align-items: center;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: 0.45rem 0.9rem;
-  width: 100%;
-  transition: border-color 0.2s;
-
-  input {
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: var(--fs-sm);
-    width: 100%;
-    outline: none;
-  }
-
-  &:focus-within {
-    border-color: var(--border-focus);
-  }
-}

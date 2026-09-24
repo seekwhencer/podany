@@ -197,6 +197,60 @@ export class AuthManager {
     }
   }
 
+  setFormStatus(el, color, text) {
+    if (!el) return;
+    el.style.display = 'block';
+    el.style.color = color;
+    el.textContent = text;
+  }
+
+  async submitPasswordAuth() {
+    const email = this.elements.passwordEmailInput.value.trim();
+    const password = String(this.elements.passwordPasswordInput.value || '');
+    if (!email || !email.includes('@')) return;
+    if (!password) {
+      this.setFormStatus(this.elements.passwordStatusMsg, '#ef4444', 'Password is required.');
+      return;
+    }
+
+    this.setFormStatus(this.elements.passwordStatusMsg, '#a5b4fc', 'Signing in...');
+
+    try {
+      const data = await this.api.loginWithPassword({ email, password });
+      if (!data.success || !data.sessionToken) {
+        throw new Error(data.error || 'Failed to sign in');
+      }
+      this.state.sessionToken = data.sessionToken;
+      this.storage.saveSessionToken(data.sessionToken);
+      if (data.user) this.state.userEmail = data.user.email || '';
+      this.elements.authModal.classList.add('hidden');
+      this.updateSyncStatusUI('Authenticated via Password Login (Server Synced)', this.state.userEmail, true);
+      await this.app.sync.syncFeedsWithServer();
+    } catch (e) {
+      this.setFormStatus(this.elements.passwordStatusMsg, '#ef4444', `Error: ${e.message}`);
+    }
+  }
+
+  toggleLoginMode() {
+    const magicVisible = !this.elements.magicAuthForm.classList.contains('hidden');
+    if (magicVisible) {
+      this.elements.magicAuthForm.classList.add('hidden');
+      this.elements.passwordAuthForm.classList.remove('hidden');
+      if (this.elements.authModalTitle) this.elements.authModalTitle.textContent = 'Sign In with Password';
+      if (this.elements.btnToggleLoginMode) this.elements.btnToggleLoginMode.textContent = 'Use magic link instead';
+      if (this.elements.magicEmailInput && this.elements.magicEmailInput.value) {
+        this.elements.passwordEmailInput.value = this.elements.magicEmailInput.value;
+      }
+      this.elements.passwordPasswordInput.focus();
+    } else {
+      this.elements.passwordAuthForm.classList.add('hidden');
+      this.elements.magicAuthForm.classList.remove('hidden');
+      if (this.elements.authModalTitle) this.elements.authModalTitle.textContent = 'Magic Email Login';
+      if (this.elements.btnToggleLoginMode) this.elements.btnToggleLoginMode.textContent = 'Use password instead';
+      this.elements.magicEmailInput.focus();
+    }
+  }
+
   // ── Logout / full reset ─────────────────────────────────────────────────
 
   async handleLogout() {
@@ -254,6 +308,15 @@ export class AuthManager {
         e.preventDefault();
         this.submitMagicAuth();
       });
+    }
+    if (this.elements.passwordAuthForm) {
+      this.elements.passwordAuthForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.submitPasswordAuth();
+      });
+    }
+    if (this.elements.btnToggleLoginMode) {
+      this.elements.btnToggleLoginMode.addEventListener('click', () => this.toggleLoginMode());
     }
     const hideAuth = () => this.hideAuthModal();
     if (this.elements.btnCloseAuth) this.elements.btnCloseAuth.addEventListener('click', hideAuth);

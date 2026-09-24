@@ -72,6 +72,15 @@ export class ApiClient {
     return res.json().catch(() => ({}));
   }
 
+  async loginWithPassword({ email, password }) {
+    const res = await this.request('/api/auth/login', {
+      method: 'POST',
+      headers: this._headers(),
+      body: { email, password }
+    });
+    return res.json().catch(() => ({}));
+  }
+
   async logout(token) {
     const res = await this.request('/api/auth/logout', {
       method: 'POST',

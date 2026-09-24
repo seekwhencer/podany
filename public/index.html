@@ -24,7 +24,7 @@
   <div class="modal-overlay hidden" id="auth-modal">
     <div class="modal-card">
       <div class="modal-header">
-        <h2>Magic Email Login</h2>
+        <h2 id="auth-modal-title">Magic Email Login</h2>
         <button class="btn-close" id="btn-close-auth">&times;</button>
       </div>
 
@@ -39,6 +39,24 @@
           <button type="submit" class="btn btn-primary" id="btn-submit-magic">Send Magic Login Link</button>
         </div>
       </form>
+
+      <!-- Password Login Form -->
+      <form id="password-auth-form" action="javascript:void(0);" class="hidden">
+        <div class="modal-body">
+          <label for="password-email-input">Email</label>
+          <input type="email" id="password-email-input" placeholder="you@example.com" autocomplete="username" required>
+          <label for="password-password-input">Password</label>
+          <input type="password" id="password-password-input" placeholder="Password" autocomplete="current-password" required>
+          <p class="help-text" id="password-status-msg" style="display: none; font-size: 0.85rem; color: #a5b4fc; margin-top: 0.5rem;"></p>
+        </div>
+        <div class="modal-footer" style="flex-direction: column; gap: 0.5rem; align-items: stretch;">
+          <button type="submit" class="btn btn-primary" id="btn-submit-password">Sign In</button>
+        </div>
+      </form>
+
+      <div id="login-mode-toggle" class="login-mode-toggle" style="margin-top: 0.75rem; text-align: center;">
+        <a href="javascript:void(0)" id="btn-toggle-login-mode" style="color: #a5b4fc; font-size: 0.85rem; text-decoration: underline; cursor: pointer;">Use password instead</a>
+      </div>
     </div>
   </div>
 

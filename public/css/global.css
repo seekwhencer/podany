@@ -63,18 +63,6 @@ body {
   }
 }
 
-select {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: 0.55rem 0.9rem;
-  font-family: inherit;
-  font-size: var(--fs-sm);
-  outline: none;
-  cursor: pointer;
-}
-
 .hidden {
   display: none !important;
 }
