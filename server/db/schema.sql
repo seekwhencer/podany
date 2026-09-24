@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS downloads (
   id VARCHAR(64) PRIMARY KEY,
   user_id VARCHAR(64) NOT NULL,
   episode_guid TEXT NOT NULL,
+  subscription_id VARCHAR(64),
   title VARCHAR(512),
   audio_url TEXT,
   file_path TEXT,
