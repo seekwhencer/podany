@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "Private podcast RSS feed aggregator and web player (self-hosted Express + MariaDB)",
   "type": "module",
-  "main": "src/server.js",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "db:migrate": "node src/db/migrator.js",
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "db:migrate": "node server/db/migrator.js",
     "build": "esbuild public/js/main.js --bundle --minify --outfile=public/dist/bundle.js --format=esm",
-    "migrate:data": "node src/db/migrate-data.js",
+    "migrate:data": "node server/db/migrate-data.js",
     "test": "node --test"
   },
   "keywords": [

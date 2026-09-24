@@ -2,13 +2,13 @@
 # Container entrypoint for the Podany self-hosted Express + MariaDB stack.
 # 1) Wait for MariaDB to accept connections.
 # 2) Apply schema.sql idempotently on startup.
-# 3) Hand off to the container CMD (node src/server.js).
+# 3) Hand off to the container CMD (node server/server.js).
 set -e
 
 echo "[podany] Waiting for MariaDB at ${DB_HOST}:${DB_PORT:-3306} ..."
 
 node --input-type=module -e '
-import db from "./src/db/connection.js";
+import db from "./server/db/connection.js";
 let ready = false;
 for (let attempt = 1; attempt <= 60 && !ready; attempt++) {
   try {

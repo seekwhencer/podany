@@ -1,7 +1,7 @@
 // api.js — Podany ApiClient
 // Central fetch wrapper. Adds credentials + X-Session-Token auth header and
 // routes every call through the self-hosted Express API. All endpoints match
-// the new backend (src/routes/*): /api/auth, /api/sync, /api/feed, /api/audio-proxy.
+// the new backend (server/routes/*): /api/auth, /api/sync, /api/feed, /api/audio-proxy.
 
 export class ApiError extends Error {
   constructor(message, status) {

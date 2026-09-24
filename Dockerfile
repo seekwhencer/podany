@@ -16,7 +16,7 @@ COPY node_modules ./node_modules
 
 # Copy application source and static frontend before bundling so esbuild can
 # resolve its inputs.
-COPY src/ ./src/
+COPY server/ ./server/
 COPY public/ ./public/
 
 RUN npm run build
@@ -33,4 +33,4 @@ EXPOSE 8788
 #RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 #ENTRYPOINT ["docker-entrypoint.sh"]
-#CMD ["node", "src/server.js"]
+#CMD ["node", "server/server.js"]

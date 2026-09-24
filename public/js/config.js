@@ -46,7 +46,7 @@ export const DIR_PAGE_SIZE = 12;
 export const AUDIO_CACHE_NAME = 'podany-audio-v1';
 export const APP_CACHE_NAME = 'podany-v2';
 
-// Session cookie name must match the backend default (src/config/defaults.js).
+// Session cookie name must match the backend default (server/config/defaults.js).
 export const SESSION_COOKIE_NAME = 'podcast_session';
 
 export class Config {
