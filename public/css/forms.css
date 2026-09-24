@@ -1,0 +1,143 @@
+select {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.9rem;
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    outline: none;
+    cursor: pointer;
+}
+
+input[type=text],
+input[type=email],
+input[type=password] {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    width: 100%;
+    outline: 2px solid var(--primary);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.25rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.9rem;
+    width: 100%;
+    transition: border-color 0.2s;
+
+    input {
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        width: 100%;
+        outline: none;
+    }
+
+    &:focus-within {
+        border-color: var(--border-focus);
+    }
+}
+
+.quick-add-form {
+    width: 100%;
+
+    .quick-add-input-wrap {
+        display: flex;
+        align-items: center;
+        position: relative;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 0.35rem 0.4rem 0.35rem 0.75rem;
+        gap: 0.5rem;
+        transition: border-color 0.2s, background 0.2s;
+
+        [data-theme="light"] &,
+        :root:not([data-theme="dark"]) & {
+            background: rgba(0, 0, 0, 0.03);
+        }
+
+        &:focus-within {
+            border-color: var(--border-focus);
+            background: rgba(255, 255, 255, 0.06);
+
+            [data-theme="light"] &,
+            :root:not([data-theme="dark"]) & {
+                background: rgba(0, 0, 0, 0.05);
+            }
+        }
+
+        .quick-add-icon {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-size: var(--fs-md);
+            font-weight: 300;
+            color: var(--text-primary);
+            min-width: 0;
+
+            &::placeholder {
+                color: var(--text-muted);
+                font-weight: 300;
+            }
+        }
+
+        .btn-quick-submit {
+            padding: 0.4rem 0.9rem;
+            font-size: var(--fs-sm);
+            font-weight: 500;
+            border-radius: 6px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+    }
+}
+
+.theme-switch-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.btn-theme {
+    text-transform: capitalize;
+    padding: 0.5rem 1.25rem;
+    font-size: var(--fs-sm);
+    border-radius: var(--radius-full);
+
+    &.active {
+        background: var(--text-primary);
+        color: var(--bg-dark);
+        border-color: var(--text-primary);
+        font-weight: 600;
+    }
+}

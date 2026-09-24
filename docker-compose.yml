@@ -54,6 +54,9 @@ services:
       AUTH_MODE: ${AUTH_MODE:-local}
       MAGIC_LINK_ENABLED: ${MAGIC_LINK_ENABLED:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DEFAULT_USER_EMAIL: ${DEFAULT_USER_EMAIL:-admin@podany.local}
+      DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD:-change-me}
+      DEFAULT_USER_COLOR: ${DEFAULT_USER_COLOR:-#d8cdbe}
     ports:
       - "8788:8788"
     volumes:

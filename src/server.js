@@ -35,13 +35,23 @@ export function createApp(deps = {}) {
     }
   }));
 
+  const homePage = config.environment === 'development' ? 'dev.html' : 'index.html';
+
   app.use('/api', createAppRouter(deps));
+
+  // Serve the configured home page for the root path before express.static,
+  // which would otherwise always serve index.html as its default document.
+  app.use((req, res, next) => {
+    if (req.url === '/' || req.url === '') {
+      return res.sendFile(join(PUBLIC_DIR, homePage));
+    }
+    next();
+  });
+
   app.use(express.static(PUBLIC_DIR));
 
-  // SPA fallback: serve index.html for non-API routes so magic-link callbacks
+  // SPA fallback: serve the home page for non-API routes so magic-link callbacks
   // (/auth/verify/?token=…) and client-side deep links resolve to the app.
-  // In development mode, serve dev.html instead.
-  const homePage = config.environment === 'development' ? 'dev.html' : 'index.html';
   app.use((req, res, next) => {
     if (req.originalUrl.startsWith('/api')) return next();
     res.sendFile(join(PUBLIC_DIR, homePage));
