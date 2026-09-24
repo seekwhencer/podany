@@ -1,0 +1,30 @@
+# Production / self-hosted override.
+#
+# Combine with the dev stack and provide real values via the shell environment or
+# the project .env file (auto-loaded by Compose for ${VAR} interpolation):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Never commit secrets (see .env.example). The remaining variables (DB creds,
+# APP_URL, FROM_EMAIL, RESEND_API_KEY, SESSION_SECRET, AUTH_MODE) are inherited
+# from docker-compose.yml and read from the environment / .env there.
+
+services:
+  db:
+    volumes:
+      - podany-mariadb-prod:/var/lib/mysql
+    restart: always
+
+  app:
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8788"
+      DB_HOST: db
+      DB_PORT: "3306"
+      # Serve over HTTPS so the session cookie is marked Secure.
+      COOKIE_SECURE: "true"
+    ports:
+      - "8788:8788"
+    restart: always
+
+volumes:
+  podany-mariadb-prod:

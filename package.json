@@ -1,24 +1,34 @@
 {
   "name": "podany",
   "version": "1.0.0",
-  "description": "Private podcast RSS feed aggregator and web player hosted on Cloudflare Pages/Workers",
-  "main": "public/index.html",
+  "description": "Private podcast RSS feed aggregator and web player (self-hosted Express + MariaDB)",
   "type": "module",
+  "main": "src/server.js",
   "scripts": {
-    "dev": "wrangler pages dev public --port 8788",
-    "dev:init-db": "mkdir -p .wrangler/state/v3/d1/miniflare-D1DatabaseObject && sqlite3 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/1d2c6f471d53ebbab1505a69a966ce3e563bc9428255f6f61ad83474526c0fe6.sqlite < schema.sql",
-    "deploy": "wrangler pages deploy public"
-  },
-  "devDependencies": {
-    "wrangler": "^3.100.0"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:migrate": "node src/db/migrator.js",
+    "build": "esbuild public/js/main.js --bundle --minify --outfile=public/dist/bundle.js --format=esm",
+    "migrate:data": "node src/db/migrate-data.js",
+    "test": "node --test"
   },
   "keywords": [
     "podcast",
     "rss",
-    "cloudflare",
-    "wrangler",
-    "web-player"
+    "web-player",
+    "self-hosted",
+    "express"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  }
 }

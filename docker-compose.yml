@@ -1,0 +1,71 @@
+# Podany self-hosted stack (Express + MariaDB).
+#
+# Run locally:
+#   cp .env.example .env      # then edit the values (optional; defaults are shown below)
+#   docker compose up --build
+#
+# ${VAR} values are interpolated from the shell environment or the project .env
+# file; anything left unset falls back to the default after ":-".
+
+services:
+  podany_db:
+    image: mariadb:11
+    container_name: podany_db
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-podany}
+      MARIADB_USER: ${DB_USER:-podany}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-change-me}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change-me-root}
+    volumes:
+      - podany-mariadb:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - "-h"
+        - "127.0.0.1"
+        - "--silent"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  podany_app:
+    build: .
+    image: podany:latest
+    container_name: podany_app
+    depends_on: 
+      - podany_db
+    environment:
+      PORT: "8788"
+      HOST: "0.0.0.0"
+      DB_HOST: podany_db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-podany}
+      DB_USER: ${DB_USER:-podany}
+      DB_PASSWORD: ${DB_PASSWORD:-change-me}
+      DB_POOL_MAX: "10"
+      APP_URL: ${APP_URL:-http://localhost:8788}
+      FROM_EMAIL: ${FROM_EMAIL:-"Podany <login@podany.poizoom.com>"}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-random-string}
+      AUTH_MODE: ${AUTH_MODE:-magic}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    ports:
+      - "8788:8788"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - "-e"
+        - "fetch('http://127.0.0.1:8788/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  podany-mariadb:

@@ -1,0 +1,9 @@
+process.env.DB_HOST ??= 'localhost';
+process.env.DB_PORT ??= '3306';
+process.env.DB_NAME ??= 'podany_test';
+process.env.DB_USER ??= 'root';
+process.env.DB_PASSWORD ??= 'test';
+process.env.APP_URL ??= 'http://localhost:8788';
+process.env.SESSION_SECRET ??= 'test-secret';
+process.env.AUTH_MODE ??= 'mixed';
+process.env.RESEND_API_KEY ??= '';

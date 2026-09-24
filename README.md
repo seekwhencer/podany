@@ -1,6 +1,6 @@
 # Podany
 
-Private podcast RSS feed aggregator and web player hosted on Cloudflare Pages with Cloudflare D1 storage.
+Private podcast RSS feed aggregator and web player, self-hosted with Express and MariaDB.
 
 ## Screenshots
 
@@ -27,8 +27,8 @@ Private podcast RSS feed aggregator and web player hosted on Cloudflare Pages wi
 
 - **Audio & YouTube Playback**: Streams standard podcast RSS enclosures (MP3, M4A, AAC) and YouTube playlists/channels.
 - **Offline Audio Caching (PWA)**: Service worker with Range request support (`HTTP 206`) for offline listening and CacheStorage management.
-- **Cross-Device Sync**: Multi-user subscription and playback position synchronization powered by Cloudflare D1 (SQLite at the edge).
-- **Passwordless Auth**: Magic link login via Resend with cryptographic token verification.
+- **Cross-Device Sync**: Multi-user subscription and playback position synchronization backed by MariaDB.
+- **Passwordless Auth**: Magic link login via Resend with cryptographic token verification (optional local login for dev).
 - **Directory Search**: Search Apple Podcasts directory or paste direct RSS/YouTube URLs.
 - **Show Notes & Chapters**: Rich show notes with clickable links and interactive seek timestamps.
 - **Playback Controls**: Non-destructive skip (preserves position in Continue Listening), dedicated mark-as-listened button, variable speed (0.8x - 2.0x), and sleep timer.
@@ -37,103 +37,56 @@ Private podcast RSS feed aggregator and web player hosted on Cloudflare Pages wi
 
 ## Technology Stack
 
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5 Audio, CSS3 Variables, PWA Service Worker.
-- **Hosting**: Cloudflare Pages.
-- **Serverless API**: Cloudflare Pages Functions (`workerd`).
-- **Database**: Cloudflare D1 (SQLite).
-- **Email Delivery**: Resend REST API.
+- **Frontend**: Vanilla JavaScript (ES6+ classes), bundled with esbuild to `public/dist/bundle.js`; HTML5 Audio, CSS3 Variables, PWA Service Worker.
+- **Backend**: Express v4 (`src/`), ES modules (`"type": "module"`), layered `routes → services → models → db`.
+- **Database**: MariaDB via `mysql2` connection pool; schema in `src/db/schema.sql`.
+- **Auth**: Magic-link tokens (SHA-256 hashed) + in-memory session cookies via `express-session`.
+- **Email Delivery**: Resend REST API (optional; without a key the verify URL is returned directly for local dev).
 
 ## Project Structure
 
 ```
 podany/
-├── docs/
-│   └── screenshots/
-│       ├── mobile-feeds.png
-│       ├── mobile-player.png
-│       ├── preview-dark.png
-│       └── preview-light.png
-├── functions/
-│   └── api/
-│       ├── auth/
-│       │   ├── logout.js
-│       │   ├── send-link.js
-│       │   └── verify.js
-│       ├── sync/
-│       │   ├── feeds.js
-│       │   └── position.js
-│       ├── audio-proxy.js
-│       ├── feed.js
-│       └── utils.js
-├── public/
-│   ├── app.js
-│   ├── icon.svg
+├── src/                        # Self-Hosted backend (ES6 classes)
+│   ├── server.js               # Express entrypoint: app, middleware, routes, start
+│   ├── config/                 # Config class + defaults (env vars)
+│   ├── db/                     # MariaDB pool, migrator, schema.sql, data-migration
+│   ├── models/                 # Data-access classes (User, AuthToken, Subscription, ...)
+│   ├── services/               # Business logic (Auth, Feed, Sync, AudioProxy, Downloads, Email)
+│   ├── middleware/             # auth, cors, errorHandler, rateLimit
+│   ├── routes/                 # auth, sync, feed (+ audio-proxy, downloads)
+│   └── utils/                  # crypto, url (SSRF guard), response helpers
+├── public/                     # Static frontend + bundled JS
 │   ├── index.html
-│   ├── manifest.webmanifest
 │   ├── style.css
-│   └── sw.js
+│   ├── sw.js                   # PWA service worker
+│   ├── auth/verify/index.html  # Standalone magic-link verify page
+│   ├── js/                     # Modular frontend source (import/export classes)
+│   └── dist/bundle.js          # esbuild output (built by `npm run build`)
+├── docker-compose.yml          # Express app + MariaDB
+├── Dockerfile
+├── docker-entrypoint.sh        # Wait for DB, apply schema, start server
+├── .env.example                # All environment variables
 ├── package.json
-├── schema.sql
-├── wrangler.json
 └── README.md
 ```
 
 ## Database Schema
 
-```sql
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  created_at INTEGER DEFAULT (unixepoch())
-);
+Timestamps are Unix epoch seconds (`BIGINT`), matching the app code directly. See `src/db/schema.sql` for the full definition. Key tables:
 
-CREATE TABLE IF NOT EXISTS auth_tokens (
-  token_hash TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  used INTEGER DEFAULT 0,
-  created_at INTEGER DEFAULT (unixepoch()),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS user_sessions (
-  session_hash TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  expires_at INTEGER NOT NULL,
-  created_at INTEGER DEFAULT (unixepoch()),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS subscriptions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  feed_url TEXT NOT NULL,
-  title TEXT,
-  artwork TEXT,
-  created_at INTEGER DEFAULT (unixepoch()),
-  UNIQUE(user_id, feed_url),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS playback_state (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  episode_guid TEXT NOT NULL,
-  position_seconds REAL DEFAULT 0,
-  completed INTEGER DEFAULT 0,
-  last_listened_at INTEGER DEFAULT (unixepoch()),
-  UNIQUE(user_id, episode_guid),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-```
+- `users` — id, email (unique), created_at
+- `auth_tokens` — token_hash (unique), user_id, expires_at, used, created_at
+- `subscriptions` — id, user_id, feed_url, title, artwork, created_at (unique on user_id + feed_url)
+- `playback_state` — id, user_id, episode_guid, position_seconds, completed, last_listened_at (unique on user_id + episode_guid)
+- `downloads` — server-side offline episodes (id, user_id, episode_guid, file_path, status, ...)
 
 ## Local Development
 
 ### Prerequisites
 
 - Node.js 18 or higher
-- npm 9 or higher
-- Cloudflare Wrangler CLI
+- MariaDB 11 running and reachable
 
 ### Setup
 
@@ -142,63 +95,80 @@ CREATE TABLE IF NOT EXISTS playback_state (
    npm install
    ```
 
-2. (Optional) Initialize local SQLite database:
+2. Configure environment:
    ```bash
-   npm run dev:init-db
+   cp .env.example .env
+   # edit .env (at minimum set DB_* credentials and SESSION_SECRET)
    ```
 
-3. Start local development server:
+3. Apply the database schema:
+   ```bash
+   npm run db:migrate
+   ```
+
+4. Start the development server:
    ```bash
    npm run dev
    ```
    Open `http://localhost:8788` in your browser.
 
-## Deployment
+Without a `RESEND_API_KEY`, `/api/auth/send-link` returns the verify URL directly so you can sign in locally. Set `AUTH_MODE=local` to expose a direct email login that skips email entirely.
 
-### 1. Create D1 Database
-
-```bash
-npx wrangler d1 create podany-db
-```
-
-Update `database_id` in `wrangler.json` with the generated database ID.
-
-Execute the schema against the remote D1 instance:
-```bash
-npx wrangler d1 execute podany-db --file=schema.sql --remote
-```
-
-### 2. Configure Secrets and Variables
-
-Set the Resend API key for authentication emails:
-```bash
-npx wrangler pages secret put RESEND_API_KEY --project-name podany
-```
-
-Verify or update the variables in `wrangler.json`:
-```json
-{
-  "vars": {
-    "APP_URL": "https://podany.poizoom.com",
-    "FROM_EMAIL": "Podany <login@podany.poizoom.com>"
-  }
-}
-```
-
-### 3. Deploy to Cloudflare Pages
+## Deployment (Docker Compose)
 
 ```bash
-npx wrangler pages deploy public --project-name podany --branch main
+cp .env.example .env      # then edit the values (optional; defaults are shown in docker-compose.yml)
+docker compose up --build
 ```
+
+This starts two services — `db` (MariaDB 11) and `app` (Express). The container entrypoint waits for MariaDB, applies the schema on startup, then starts the server. Open `http://localhost:8788`.
+
+## Data Migration (Cloudflare D1 / SQLite → MariaDB)
+
+If you are moving an existing install from Cloudflare D1 (SQLite) or a raw SQLite/SQL/JSON export into MariaDB:
+
+```bash
+# Point at a D1 dump, .sqlite file, or `wrangler d1 export --format json` file
+npm run migrate:data -- --source ./my-export.json
+
+# Preview without writing
+npm run migrate:data -- --source ./my-export.sqlite --dry-run
+```
+
+The script reads the known tables and upserts them into the MariaDB schema. See `src/db/migrate-data.js`.
 
 ## Configuration
 
-| Name | Type | Target | Description |
+All values are read by the `Config` class from process env + `.env` (see `.env.example`).
+
+| Name | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `DB` | D1 Binding | `wrangler.json` | Cloudflare D1 database binding (`podany-db`) |
-| `RESEND_API_KEY` | Secret | Pages Secrets | Resend API key for transactional login emails |
-| `APP_URL` | String | `wrangler.json` | Canonical base URL used in magic links |
-| `FROM_EMAIL` | String | `wrangler.json` | Sender address for magic link emails |
+| `PORT` | number | `8788` | Express listen port |
+| `HOST` | string | `0.0.0.0` | Bind interface |
+| `DB_HOST` | string | — | MariaDB host |
+| `DB_PORT` | number | `3306` | MariaDB port |
+| `DB_NAME` | string | — | Database name |
+| `DB_USER` | string | — | DB user |
+| `DB_PASSWORD` | string | — | DB password |
+| `DB_POOL_MAX` | number | `10` | Connection-pool size |
+| `APP_URL` | string | — | Canonical base URL (magic links, cookie origin) |
+| `FROM_EMAIL` | string | — | Sender address for login emails |
+| `RESEND_API_KEY` | secret | — | Resend key; empty = local dev mode |
+| `SESSION_SECRET` | secret | — | Signs the session cookie (required) |
+| `AUTH_MODE` | `magic`\|`local`\|`mixed` | `magic` | Login flow |
+| `COOKIE_SECURE` | boolean | `true` | Set `Secure` on the cookie (use `false` over plain HTTP) |
+| `RATE_LIMIT_LINKS_PER_HOUR` | number | `60` | Login links allowed per email per hour |
+| `CORS_ORIGIN` | string / `*` | `*` | Allowed CORS origin |
+
+Secrets are never committed; keep `.env` private.
+
+## Testing
+
+```bash
+npm test
+```
+
+Runs the Node.js built-in test runner across the backend units (services, models, middleware, routes, utils).
 
 ## License
 

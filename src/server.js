@@ -1,0 +1,114 @@
+import express from 'express';
+import session from 'express-session';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+import config from './config/index.js';
+import db from './db/connection.js';
+import { migrate } from './db/migrator.js';
+import { createCors } from './middleware/cors.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { createAppRouter } from './routes/index.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = join(__dirname, '..', 'public');
+
+export function createApp(deps = {}) {
+  const app = express();
+  app.disable('x-powered-by');
+
+  app.use(createCors());
+  app.use(express.json({ limit: '1mb' }));
+
+  app.use(session({
+    name: 'podany_session',
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: config.cookieSecure,
+      path: '/'
+    }
+  }));
+
+  app.use('/api', createAppRouter(deps));
+  app.use(express.static(PUBLIC_DIR));
+
+  // SPA fallback: serve index.html for non-API routes so magic-link callbacks
+  // (/auth/verify/?token=…) and client-side deep links resolve to the app.
+  app.use((req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) return next();
+    res.sendFile(join(PUBLIC_DIR, 'index.html'));
+  });
+
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+}
+
+async function waitForDb(retries = 30, delayMs = 1000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await db.ping();
+      return attempt;
+    } catch (err) {
+      const last = attempt === retries;
+      if (!last) {
+        console.log(
+          `[server] Waiting for MariaDB (${db.options.host}:${db.options.port}) — ` +
+          `attempt ${attempt}/${retries}: ${err.message}`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+export async function start(deps = {}) {
+  const app = createApp(deps);
+
+  try {
+    const attempts = await waitForDb();
+    const statements = await migrate(db);
+    console.log(`[server] Connected to MariaDB after ${attempts} attempt(s); applied ${statements} statement(s).`);
+  } catch (err) {
+    console.error('[server] Database migration failed:', err.message);
+    process.exitCode = 1;
+    throw err;
+  }
+
+  const server = app.listen(config.port, config.host, () => {
+    const { port, address } = server.address();
+    console.log(`[server] Podany listening on http://${address}:${port}`);
+    console.log(
+      `[server] config: APP_URL=${config.appUrl} AUTH_MODE=${config.authMode} ` +
+      `email=${config.resendEnabled ? 'resend' : 'local'} cookieSecure=${config.cookieSecure}`
+    );
+  });
+
+  async function shutdown(signal) {
+    console.log(`\n[server] Received ${signal}, shutting down...`);
+    server.close(() => {
+      db.close().finally(() => process.exit(0));
+    });
+  }
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  return server;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  start().catch((err) => {
+    console.error('[server] Fatal startup error:', err);
+    process.exit(1);
+  });
+}
+
+export { PUBLIC_DIR };
