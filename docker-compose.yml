@@ -61,7 +61,7 @@ services:
       - "8788:8788"
     volumes:
       - ./public:/app/public
-      - ./src:/app/src
+      - ./server:/app/server
     healthcheck:
       test:
         - CMD
