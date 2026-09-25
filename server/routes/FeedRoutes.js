@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { json } from '../utils/response.js';
 import { FeedService } from '../services/feedService.js';
 
 export class FeedRoutes {
