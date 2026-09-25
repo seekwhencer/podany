@@ -1,26 +1,8 @@
-import { Subscription } from '../models/Subscription.js';
 import { PlaybackState } from '../models/PlaybackState.js';
 
-export class SyncService {
+export class PlaybackService {
   constructor(deps = {}) {
-    this.subscriptions = deps.subscriptions ?? new Subscription();
     this.playback = deps.playback ?? new PlaybackState();
-  }
-
-  async listSubscriptions(userId) {
-    const feeds = await this.subscriptions.listByUser(userId);
-    return { feeds };
-  }
-
-  async addSubscription({ userId, feedUrl, title = '', artwork = '' }) {
-    const id = this.subscriptions.generateId('sub_');
-    await this.subscriptions.upsert({ id, userId, feedUrl, title, artwork });
-    return { success: true, feedUrl };
-  }
-
-  async removeSubscription(userId, feedUrl) {
-    await this.subscriptions.remove(userId, feedUrl);
-    return { success: true, removed: feedUrl };
   }
 
   async listPositions(userId) {
@@ -49,4 +31,4 @@ export class SyncService {
   }
 }
 
-export default SyncService;
+export default PlaybackService;

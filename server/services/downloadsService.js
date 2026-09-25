@@ -4,6 +4,7 @@ import { Downloads } from '../models/Downloads.js';
 import { isValidExternalUrl } from '../utils/url.js';
 
 const DEFAULT_RETENTION_DAYS = 30;
+const DEFAULT_CONCURRENCY = 4;
 
 export class DownloadsService {
   constructor(deps = {}) {
@@ -11,6 +12,35 @@ export class DownloadsService {
     this.storageDir = deps.storageDir ?? deps.config?.downloadStorageDir;
     this.retentionDays = deps.retentionDays ?? DEFAULT_RETENTION_DAYS;
     this.fetchImpl = deps.fetch ?? globalThis.fetch;
+    this.concurrency = this._resolveConcurrency(deps);
+    this.queue = [];
+    this.activeCount = 0;
+  }
+
+  _resolveConcurrency(deps) {
+    const raw = deps.concurrency != null
+      ? deps.concurrency
+      : (deps.config?.downloadConcurrency ?? DEFAULT_CONCURRENCY);
+    const value = Number.parseInt(raw, 10);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  }
+
+  enqueue(record) {
+    if (!record) return record;
+    this.queue.push(record);
+    this._processQueue();
+    return record;
+  }
+
+  _processQueue() {
+    while (this.activeCount < this.concurrency && this.queue.length > 0) {
+      const record = this.queue.shift();
+      this.activeCount += 1;
+      this.startDownload(record).finally(() => {
+        this.activeCount -= 1;
+        this._processQueue();
+      });
+    }
   }
 
   async listByUser(userId) {
@@ -25,7 +55,7 @@ export class DownloadsService {
     return this.downloads.findById(id);
   }
 
-  async register({ userId, episodeGuid, title = '', audioUrl = null }) {
+  async register({ userId, episodeGuid, title = '', audioUrl = null, subscriptionId = null }) {
     if (audioUrl && !isValidExternalUrl(audioUrl)) {
       throw new Error('Invalid or disallowed audio URL.');
     }
@@ -34,6 +64,7 @@ export class DownloadsService {
       id,
       userId,
       episodeGuid,
+      subscriptionId,
       title,
       audioUrl,
       filePath: null,
@@ -41,7 +72,9 @@ export class DownloadsService {
       status: 'pending',
       progress: 0
     });
-    return this.downloads.findById(id);
+    const created = await this.downloads.findById(id);
+    this.enqueue(created);
+    return created;
   }
 
   async startDownload(record) {

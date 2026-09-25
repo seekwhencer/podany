@@ -98,21 +98,21 @@ export class ApiClient {
   // ── Sync (subscriptions + playback positions) ───────────────────────────
 
   async listSubscriptions() {
-    const data = await this.requireJson('/api/sync/subscriptions', { method: 'GET', headers: this._headers() });
+    const data = await this.requireJson('/api/subscription/list', { method: 'GET', headers: this._headers() });
     return { feeds: Array.isArray(data.feeds) ? data.feeds : [] };
   }
 
-  async addSubscription({ feedUrl, title = '', artwork = '' }) {
-    const res = await this.request('/api/sync/subscriptions', {
+  async addSubscription({ feedUrl, title = '', image = '' }) {
+    const res = await this.request('/api/subscription', {
       method: 'POST',
       headers: this._headers(),
-      body: { feedUrl, title, artwork }
+      body: { feedUrl, title, image }
     });
     return res.ok;
   }
 
   async removeSubscription(feedUrl) {
-    const res = await this.request('/api/sync/subscriptions', {
+    const res = await this.request('/api/subscription', {
       method: 'DELETE',
       headers: this._headers(),
       body: { feedUrl }
@@ -121,12 +121,12 @@ export class ApiClient {
   }
 
   async listPositions() {
-    const data = await this.requireJson('/api/sync/positions', { method: 'GET', headers: this._headers() });
+    const data = await this.requireJson('/api/playback/positions', { method: 'GET', headers: this._headers() });
     return data.positions || {};
   }
 
   async savePosition(episodeGuid, positionSeconds, completed = false) {
-    const res = await this.request('/api/sync/positions', {
+    const res = await this.request('/api/playback/positions', {
       method: 'POST',
       headers: this._headers(),
       body: { episodeGuid, positionSeconds, completed }

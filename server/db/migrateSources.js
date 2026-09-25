@@ -13,7 +13,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const TABLE_MIGRATIONS = {
   users: { columns: ['id', 'email', 'created_at'], pk: 'id' },
   auth_tokens: { columns: ['token_hash', 'user_id', 'expires_at', 'used', 'created_at'], pk: 'token_hash' },
-  subscriptions: { columns: ['id', 'user_id', 'feed_url', 'title', 'artwork', 'created_at'], pk: 'id' },
+  subscriptions: { columns: ['id', 'user_id', 'feed_url', 'title', 'created_at'], pk: 'id' },
   playback_state: { columns: ['id', 'user_id', 'episode_guid', 'position_seconds', 'completed', 'last_listened_at'], pk: 'id' }
 };
 

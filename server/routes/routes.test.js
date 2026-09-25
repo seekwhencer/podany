@@ -32,7 +32,7 @@ const fakeAuth = {
 const fakeSync = {
   calls: [],
   async listSubscriptions(userId) { this.calls.push(['listSubscriptions', userId]); return { feeds: [] }; },
-  async addSubscription(args) { this.calls.push(['addSubscription', args]); return { success: true, feedUrl: args.feedUrl }; },
+  async addSubscription(args) { this.calls.push(['addSubscription', args]); return { success: true, feedUrl: args.feedUrl, id: 'sub_test' }; },
   async removeSubscription(userId, feedUrl) { this.calls.push(['removeSubscription', userId, feedUrl]); return { success: true, removed: feedUrl }; },
   async listPositions(userId) { this.calls.push(['listPositions', userId]); return { positions: {} }; },
   async savePosition(args) { this.calls.push(['savePosition', args]); return { success: true, episodeGuid: args.episodeGuid }; }
@@ -197,6 +197,81 @@ test('sync add subscription validates feedUrl and stores it', async (t) => {
   const ok = await request(server, 'POST', '/api/sync/subscriptions', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss', title: 'T' } });
   assert.equal(ok.status, 200);
   assert.equal(ok.body.feedUrl, 'https://example.com/rss');
+});
+
+test('sync add subscription enqueues a download for each new episode', async (t) => {
+  const registered = [];
+  const downloadsFake = {
+    records: {},
+    async listByUser(userId) { return Object.values(this.records).filter((r) => r.user_id === userId); },
+    async register(args) {
+      const record = { id: `dl_${registered.length + 1}`, user_id: args.userId, episode_guid: args.episodeGuid, subscription_id: args.subscriptionId, audio_url: args.audioUrl, title: args.title || '', status: 'pending', progress: 0 };
+      this.records[record.id] = record;
+      registered.push(record);
+      return record;
+    },
+    async findById(id) { return this.records[id] ?? null; },
+    async startDownload(record) { record.status = 'completed'; record.progress = 100; return record; },
+    async remove() { return { success: true, removed: null }; },
+    async deleteById(id) { return { success: true, id } }
+  };
+  const feedFake = {
+    async fetchFeeds(urls) {
+      return [{
+        title: 'Feed A',
+        feedUrl: urls[0],
+        episodes: [
+          { guid: 'ep-1', title: 'One', audioUrl: 'https://cdn.example.com/1.mp3' },
+          { guid: 'ep-2', title: 'Two', audioUrl: 'https://cdn.example.com/2.mp3' }
+        ]
+      }];
+    }
+  };
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: feedFake, downloads: downloadsFake } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'POST', '/api/sync/subscriptions', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss' } });
+  assert.equal(res.status, 200);
+  assert.equal(registered.length, 2);
+  assert.deepEqual(registered.map((r) => r.episode_guid), ['ep-1', 'ep-2']);
+  assert.equal(registered[0].title, 'One');
+  assert.deepEqual(registered.map((r) => r.subscription_id), ['sub_test', 'sub_test']);
+});
+
+test('sync add subscription skips episodes that already have a download', async (t) => {
+  const registered = [];
+  const downloadsFake = {
+    records: {},
+    async listByUser(userId) { return Object.values(this.records).filter((r) => r.user_id === userId); },
+    async register(args) {
+      const record = { id: `dl_${registered.length + 1}`, user_id: args.userId, episode_guid: args.episodeGuid, subscription_id: args.subscriptionId, audio_url: args.audioUrl, title: args.title || '', status: 'pending', progress: 0 };
+      this.records[record.id] = record;
+      registered.push(record);
+      return record;
+    },
+    async findById(id) { return this.records[id] ?? null; },
+    async startDownload(record) { record.status = 'completed'; record.progress = 100; return record; },
+    async remove() { return { success: true, removed: null }; },
+    async deleteById(id) { return { success: true, id } }
+  };
+  downloadsFake.records['dl_existing'] = { id: 'dl_existing', user_id: 'usr_1', episode_guid: 'ep-1', status: 'completed' };
+  const feedFake = {
+    async fetchFeeds(urls) {
+      return [{ title: 'Feed A', feedUrl: urls[0], episodes: [
+        { guid: 'ep-1', title: 'One', audioUrl: 'https://cdn.example.com/1.mp3' },
+        { guid: 'ep-2', title: 'Two', audioUrl: 'https://cdn.example.com/2.mp3' }
+      ] }];
+    }
+  };
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: feedFake, downloads: downloadsFake } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'POST', '/api/sync/subscriptions', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(registered.map((r) => r.episode_guid), ['ep-2']);
+  assert.deepEqual(registered.map((r) => r.subscription_id), ['sub_test']);
 });
 
 test('sync save position coerces numeric fields', async (t) => {

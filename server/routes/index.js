@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { AuthService } from '../services/authService.js';
 import { SessionStore } from '../services/sessionStore.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
-import { createAuthRoutes } from './auth.routes.js';
-import { createSyncRoutes } from './sync.routes.js';
-import { createUserRoutes } from './user.routes.js';
-import { createFeedRoutes, createAudioProxyRoutes, createDownloadsRoutes } from './feed.routes.js';
+import { AuthRoutes } from './AuthRoutes.js';
+import { SubscriptionRoutes } from './SubscriptionRoutes.js';
+import { PlaybackRoutes } from './PlaybackRoutes.js';
+import { UserRoutes } from './UserRoutes.js';
+import { FeedRoutes, AudioProxyRoutes, DownloadsRoutes } from './FeedRoutes.js';
 
 export function createAppRouter(deps = {}) {
   const router = Router();
@@ -16,12 +17,13 @@ export function createAppRouter(deps = {}) {
   const auth = deps.auth ?? new AuthService({ ...authDeps, sessions });
   const requireAuth = createAuthMiddleware({ ...authDeps, sessions, auth });
 
-  router.use('/auth', createAuthRoutes({ ...authDeps, sessions, auth }));
-  router.use('/sync', requireAuth, createSyncRoutes({ sync: deps.sync }));
-  router.use('/user', requireAuth, createUserRoutes({ userService: deps.userService }));
-  router.use('/feed', createFeedRoutes({ ...(deps.feed ?? {}), config }));
-  router.use('/audio-proxy', createAudioProxyRoutes({ ...(deps.feed ?? {}), config }));
-  router.use('/downloads', createDownloadsRoutes({ ...(deps.feed ?? {}), config, authDeps, sessions, auth }));
+  router.use('/auth', new AuthRoutes({ ...authDeps, sessions, auth }).getRouter());
+  router.use('/subscription', requireAuth, new SubscriptionRoutes({ ...(deps.feed ?? {}), config, subscriptions: deps.subscriptions ?? deps.sync }).getRouter());
+  router.use('/playback', requireAuth, new PlaybackRoutes({ ...(deps.feed ?? {}), playback: deps.playback ?? deps.sync }).getRouter());
+  router.use('/user', requireAuth, new UserRoutes({ userService: deps.userService }).getRouter());
+  router.use('/feed', new FeedRoutes({ ...(deps.feed ?? {}), config }).getRouter());
+  router.use('/audio-proxy', new AudioProxyRoutes({ ...(deps.feed ?? {}), config }).getRouter());
+  router.use('/downloads', new DownloadsRoutes({ ...(deps.feed ?? {}), config, authDeps, sessions, auth }).getRouter());
 
   return router;
 }

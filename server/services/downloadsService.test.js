@@ -13,12 +13,13 @@ class InMemoryDownloads {
   generateId(prefix = '') {
     return `${prefix}dl_${this.rows.length + 1}`;
   }
-  async create({ id, userId, episodeGuid, title = '', audioUrl = null, filePath = null, fileSize = 0, status = 'pending', progress = 0 }) {
+  async create({ id, userId, episodeGuid, subscriptionId = null, title = '', audioUrl = null, filePath = null, fileSize = 0, status = 'pending', progress = 0 }) {
     const now = Math.floor(Date.now() / 1000);
     this.rows.push({
       id,
       user_id: userId,
       episode_guid: episodeGuid,
+      subscription_id: subscriptionId,
       title,
       audio_url: audioUrl,
       file_path: filePath,
@@ -73,6 +74,20 @@ function makeBody(chunks) {
   };
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitFor(predicate, timeout = 2000) {
+  const start = Date.now();
+  for (;;) {
+    const result = await predicate();
+    if (result) return result;
+    if (Date.now() - start > timeout) throw new Error('waitFor timed out');
+    await delay(5);
+  }
+}
+
 async function buildDownloads() {
   const downloads = new InMemoryDownloads();
   const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'podany-dl-'));
@@ -82,27 +97,43 @@ async function buildDownloads() {
 
 test('register creates a pending download record and rejects invalid audio urls', async () => {
   const { service, downloads } = await buildDownloads();
+  service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([]) });
   const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', title: 'Ep One', audioUrl: 'https://cdn.example.com/ep1.mp3' });
   assert.match(record.id, /^dl_/);
   assert.equal(record.status, 'pending');
   assert.equal(record.audio_url, 'https://cdn.example.com/ep1.mp3');
   assert.equal(downloads.rows.length, 1);
+  assert.equal(record.subscription_id, null);
   await assert.rejects(
     () => service.register({ userId: 'u1', episodeGuid: 'ep-2', audioUrl: 'http://localhost/secret.mp3' }),
     /Invalid or disallowed audio URL/
   );
 });
 
-test('startDownload streams the file to disk and marks the record completed', async () => {
+test('register links a download to its subscription id and still auto-starts', async () => {
+  const { service, downloads } = await buildDownloads();
+  service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([]) });
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', title: 'Ep One', audioUrl: 'https://cdn.example.com/ep1.mp3', subscriptionId: 'sub_123' });
+  assert.equal(record.subscription_id, 'sub_123');
+  assert.equal(downloads.rows[0].subscription_id, 'sub_123');
+  assert.equal(record.status, 'pending');
+});
+
+
+test('register starts an automatic download that streams the file to disk', async () => {
   const { service, downloads, storageDir } = await buildDownloads();
-  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
   const fetchImpl = async (url) => {
     assert.equal(url, 'https://cdn.example.com/ep1.mp3');
     return { ok: true, status: 200, body: makeBody([Buffer.from('abcdef'), Buffer.from('ghijkl')]) };
   };
   service.fetchImpl = fetchImpl;
 
-  const done = await service.startDownload(record);
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
+  assert.equal(record.status, 'pending');
+  const done = await waitFor(async () => {
+    const row = await downloads.findById(record.id);
+    return row && row.status === 'completed' ? row : null;
+  });
   assert.equal(done.status, 'completed');
   assert.equal(done.file_size, 12);
   assert.equal(done.progress, 100);
@@ -155,9 +186,12 @@ test('startDownload fails fast for disallowed urls without fetching', async () =
 
 test('remove deletes the row and the stored file', async () => {
   const { service, downloads } = await buildDownloads();
-  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
   service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([Buffer.from('data')]) });
-  const done = await service.startDownload(record);
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
+  const done = await waitFor(async () => {
+    const row = await downloads.findById(record.id);
+    return row && row.file_path ? row : null;
+  });
   assert.ok(done.file_path);
 
   const result = await service.remove('u1', 'ep-1');
@@ -168,9 +202,12 @@ test('remove deletes the row and the stored file', async () => {
 
 test('cleanup removes expired records and their files', async () => {
   const { service, downloads } = await buildDownloads();
-  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
   service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([Buffer.from('old')]) });
-  const done = await service.startDownload(record);
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
+  const done = await waitFor(async () => {
+    const row = await downloads.findById(record.id);
+    return row && row.file_path ? row : null;
+  });
   assert.ok(done.file_path);
 
   for (const row of downloads.rows) {
@@ -181,4 +218,77 @@ test('cleanup removes expired records and their files', async () => {
   assert.deepEqual(result.removed, [record.id]);
   assert.equal(downloads.rows.length, 0);
   await assert.rejects(() => fs.access(done.file_path));
+});
+
+test('register triggers an automatic download without an explicit start call', async () => {
+  const { service, downloads } = await buildDownloads();
+  let started = false;
+  service.fetchImpl = async () => {
+    started = true;
+    return { ok: true, status: 200, body: makeBody([Buffer.from('x')]) };
+  };
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep.mp3' });
+  assert.equal(record.status, 'pending');
+  await waitFor(async () => started && (await downloads.findById(record.id))?.status === 'completed');
+  assert.equal(started, true);
+  assert.equal((await downloads.findById(record.id)).status, 'completed');
+});
+
+test('queue limits concurrent downloads to downloadConcurrency', async () => {
+  const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'podany-dl-'));
+  const downloads = new InMemoryDownloads();
+  const service = new DownloadsService({ downloads, storageDir, config: { downloadConcurrency: 2 } });
+
+  let inFlight = 0;
+  let maxInFlight = 0;
+  let releaseAll = () => {};
+  const gate = new Promise((resolve) => (releaseAll = resolve));
+  service.fetchImpl = async () => {
+    inFlight += 1;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await gate;
+    inFlight -= 1;
+    return { ok: true, status: 200, body: makeBody([Buffer.from('x')]) };
+  };
+
+  for (let i = 0; i < 6; i += 1) {
+    await service.register({ userId: 'u1', episodeGuid: `ep-${i}`, audioUrl: 'https://cdn.example.com/ep.mp3' });
+  }
+
+  await delay(50);
+  assert.equal(maxInFlight, 2);
+
+  releaseAll();
+  await waitFor(() => downloads.rows.every((row) => row.status === 'completed'));
+  assert.equal(downloads.rows.length, 6);
+  assert.equal(downloads.rows.filter((row) => row.status === 'completed').length, 6);
+});
+
+test('queue drains in FIFO order when concurrency is 1', async () => {
+  const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'podany-dl-'));
+  const downloads = new InMemoryDownloads();
+  const service = new DownloadsService({ downloads, storageDir, config: { downloadConcurrency: 1 } });
+
+  const startedUrls = [];
+  let releaseAll = () => {};
+  const gate = new Promise((resolve) => (releaseAll = resolve));
+  service.fetchImpl = async (url) => {
+    startedUrls.push(url);
+    await gate;
+    return { ok: true, status: 200, body: makeBody([Buffer.from('x')]) };
+  };
+
+  for (let i = 0; i < 3; i += 1) {
+    await service.register({ userId: 'u1', episodeGuid: `ep-${i}`, audioUrl: `https://cdn.example.com/ep-${i}.mp3` });
+  }
+
+  await delay(50);
+  assert.equal(startedUrls.length, 1);
+  releaseAll();
+  await waitFor(() => downloads.rows.every((row) => row.status === 'completed'));
+  assert.deepEqual(startedUrls, [
+    'https://cdn.example.com/ep-0.mp3',
+    'https://cdn.example.com/ep-1.mp3',
+    'https://cdn.example.com/ep-2.mp3'
+  ]);
 });
