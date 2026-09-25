@@ -36,6 +36,7 @@ export class SubscriptionRoutes {
                     episodeGuid: episode.guid,
                     title: episode.title || '',
                     audioUrl: episode.audioUrl,
+                    artwork: episode.artwork || '',
                     subscriptionId
                 });
             } catch (err) {
@@ -76,6 +77,8 @@ export class SubscriptionRoutes {
                 const category = meta.category || '';
                 const language = meta.language || '';
                 const pubDate = meta.pubDate || '';
+
+                // 
                 const feed = await this.subscriptions.addSubscription({
                     userId: req.user.id,
                     feedUrl,
@@ -86,8 +89,11 @@ export class SubscriptionRoutes {
                     language,
                     pubDate
                 });
+
                 void this.enqueueEpisodesForFeed(req.user.id, feedUrl, feed.id, feeds.flatMap((f) => f.episodes ?? []));
+
                 return json(res, 200, feed);
+
             } catch (err) {
                 return next(err);
             }

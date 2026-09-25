@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS `downloads` (
   `user_id` varchar(64) NOT NULL,
   `episode_guid` text NOT NULL,
   `title` varchar(512) DEFAULT NULL,
+  `artwork` text DEFAULT NULL,
   `image` text DEFAULT NULL,
   `audio_url` text DEFAULT NULL,
   `file_path` text DEFAULT NULL,

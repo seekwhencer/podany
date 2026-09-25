@@ -43,81 +43,84 @@ app.timeline = new TimelineManager(app);
 // ── Boot sequence ───────────────────────────────────────────────────────────
 
 function loadPersistedState() {
-  app.state.playbackPositions = app.storage.loadPositions();
-  app.state.feeds = app.storage.loadFeeds();
-  app.auth.checkUrlSessionParam();
+    app.state.playbackPositions = app.storage.loadPositions();
+    app.state.feeds = app.storage.loadFeeds();
 
-  const cache = app.storage.loadCache();
-  if (cache.episodes) app.state.allEpisodes = cache.episodes;
-  if (cache.metadata) app.state.feedMetadata = cache.metadata;
+    console.log(app.state.feeds);
 
-  app.queue.loadQueue();
-  app.downloads.loadDownloads();
+    app.auth.checkUrlSessionParam();
 
-  if (app.state.allEpisodes && app.state.allEpisodes.length > 0) {
-    app.timeline.processAndSortEpisodes();
-    app.timeline.renderTimeline();
-    app.timeline.renderContinueShelf();
-    app.feeds.renderFeedsGrid();
-  }
+    const cache = app.storage.loadCache();
+    if (cache.episodes) app.state.allEpisodes = cache.episodes;
+    if (cache.metadata) app.state.feedMetadata = cache.metadata;
+
+    app.queue.loadQueue();
+    app.downloads.loadDownloads();
+
+    if (app.state.allEpisodes && app.state.allEpisodes.length > 0) {
+        app.timeline.processAndSortEpisodes();
+        app.timeline.renderTimeline();
+        app.timeline.renderContinueShelf();
+        app.feeds.renderFeedsGrid();
+    }
 }
 
 function wireAllEvents() {
-  app.theme.wireThemeButtons();
-  app.modal.init();
-  app.playerUI.init();
-  app.auth.wireEvents();
-  app.feeds.wireEvents();
-  app.queue.wireEvents();
-  app.downloads.wireEvents();
-  app.timeline.wireEvents();
+    app.theme.wireThemeButtons();
+    app.modal.init();
+    app.playerUI.init();
+    app.auth.wireEvents();
+    app.feeds.wireEvents();
+    app.queue.wireEvents();
+    app.downloads.wireEvents();
+    app.timeline.wireEvents();
 }
 
 function refreshStaticUI() {
-  app.queue.updateQueueUI();
-  app.downloads.updateDownloadedCountUI();
-  app.feeds.updateFeedCountUI();
-  app.feeds.updateDockVisibility();
+    app.queue.updateQueueUI();
+    app.downloads.updateDownloadedCountUI();
+    app.feeds.updateFeedCountUI();
+    app.feeds.updateDockVisibility();
 }
 
 function setupNetworkListeners() {
-  const updateStatus = () => {
-    if (!app.elements.offlineBadge) return;
-    app.elements.offlineBadge.classList.toggle('hidden', navigator.onLine);
-  };
-  window.addEventListener('online', updateStatus);
-  window.addEventListener('offline', updateStatus);
-  window.addEventListener('resize', () => {
-    if (app.state.continueCollapsed && app.state.allEpisodes.length > 0) {
-      app.timeline.renderContinueShelf();
-    }
-  });
-  updateStatus();
+    const updateStatus = () => {
+        if (!app.elements.offlineBadge) return;
+        app.elements.offlineBadge.classList.toggle('hidden', navigator.onLine);
+    };
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    window.addEventListener('resize', () => {
+        if (app.state.continueCollapsed && app.state.allEpisodes.length > 0) {
+            app.timeline.renderContinueShelf();
+        }
+    });
+    updateStatus();
 }
 
 function initServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => { });
+    }
 }
 
 app.init = function init() {
-  app.theme.init();
-  loadPersistedState();
-  wireAllEvents();
-  app.playback.setupAudioEngines();
-  setupNetworkListeners();
-  refreshStaticUI();
-  initServiceWorker();
-  app.modal.initNavigationRoute();
-  app.auth.checkAuth();
+    app.theme.init();
+    loadPersistedState();
+    wireAllEvents();
+    app.playback.setupAudioEngines();
+    setupNetworkListeners();
+    refreshStaticUI();
+    initServiceWorker();
+    app.modal.initNavigationRoute();
+    app.auth.checkAuth();
 };
 
 // Wire the YouTube Iframe API callback (loaded as a classic <script> before the
 // module bundle). Fires window.onYouTubeIframeAPIReady once the API is ready.
 window.onYouTubeIframeAPIReady = () => app.playback.onYouTubeIframeAPIReady();
 if (window.YT && window.YT.Player) {
-  app.playback.initYouTubePlayer();
+    app.playback.initYouTubePlayer();
 }
 
 document.addEventListener('DOMContentLoaded', () => app.init());

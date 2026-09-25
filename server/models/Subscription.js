@@ -8,7 +8,11 @@ export class Subscription extends BaseModel {
 
   async listByUser(userId) {
     return this.find(
-      'SELECT feed_url, title, artwork, description, category, language, pubDate, created_at FROM subscriptions WHERE user_id = ? ORDER BY created_at ASC',
+      `SELECT s.id, s.feed_url, s.title, s.artwork, s.image, s.description, s.category, s.language, s.pubDate, s.created_at,
+        (SELECT COUNT(*) FROM downloads d WHERE d.subscription_id = s.id) AS episodes_count
+       FROM subscriptions s
+       WHERE s.user_id = ?
+       ORDER BY s.created_at ASC`,
       [userId]
     );
   }

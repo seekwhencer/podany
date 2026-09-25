@@ -1,6 +1,6 @@
 import BaseModel from './BaseModel.js';
 
-const UPDATABLE = ['subscription_id', 'title', 'image', 'audio_url', 'file_path', 'file_size', 'status', 'progress', 'error', 'received_at', 'updated_at'];
+const UPDATABLE = ['subscription_id', 'title', 'artwork', 'image', 'audio_url', 'file_path', 'file_size', 'status', 'progress', 'error', 'received_at', 'updated_at'];
 
 export class Downloads extends BaseModel {
   constructor(pool) {
@@ -14,6 +14,7 @@ export class Downloads extends BaseModel {
     episodeGuid,
     subscriptionId = null,
     title = '',
+    artwork = null,
     image = null,
     audioUrl = null,
     filePath = null,
@@ -22,9 +23,9 @@ export class Downloads extends BaseModel {
     progress = 0
   }) {
     return this.execute(
-      `INSERT INTO downloads (id, user_id, episode_guid, subscription_id, title, image, audio_url, file_path, file_size, status, progress)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, episodeGuid, subscriptionId, title, image, audioUrl, filePath, fileSize, status, progress]
+      `INSERT INTO downloads (id, user_id, episode_guid, subscription_id, title, artwork, image, audio_url, file_path, file_size, status, progress)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, userId, episodeGuid, subscriptionId, title, artwork, image, audioUrl, filePath, fileSize, status, progress]
     );
   }
 

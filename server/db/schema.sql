@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS downloads (
   episode_guid TEXT NOT NULL,
   subscription_id VARCHAR(64),
   title VARCHAR(512),
+  artwork TEXT,
   image TEXT,
   audio_url TEXT,
   file_path TEXT,

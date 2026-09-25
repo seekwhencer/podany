@@ -19,7 +19,7 @@ class InMemorySubscriptions {
       existing.title = title;
       existing.artwork = artwork;
     } else {
-      this.rows.push({ id, user_id: userId, feed_url: feedUrl, title, artwork, created_at: Math.floor(Date.now() / 1000) });
+      this.rows.push({ id, user_id: userId, feed_url: feedUrl, title, artwork, created_at: Math.floor(Date.now() / 1000), episodes_count: 3 });
     }
     return { affectedRows: 1 };
   }
@@ -42,6 +42,7 @@ test('listSubscriptions returns the feeds for a user only', async () => {
   const result = await service.listSubscriptions('u1');
   assert.equal(result.feeds.length, 1);
   assert.equal(result.feeds[0].feed_url, 'https://a.example/feed.xml');
+  assert.equal(result.feeds[0].episodes_count, 3);
   assert.equal(subscriptions.rows.length, 2);
 });
 
