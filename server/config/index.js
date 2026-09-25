@@ -27,6 +27,10 @@ class Config {
     
 
     this.downloadStorageDir = path.resolve(env.DOWNLOADS_DIR || defaults.downloadStorageDir);
+    this.episodesStorageDir = path.resolve(env.EPISODES_DIR || defaults.episodesStorageDir);
+    this.feedsStorageDir = path.resolve(env.FEEDS_DIR || defaults.feedsStorageDir);
+    this.imageStorageDir = path.resolve(env.IMAGES_DIR || defaults.imageStorageDir);
+    this.thumbnailStorageDir = path.resolve(env.THUMBNAILS_DIR || defaults.thumbnailStorageDir);
     this.downloadConcurrency = env.DOWNLOADS_CONCURRENCY || defaults.downloadConcurrency;
 
     this.dbHost = this._require(env.DB_HOST, 'DB_HOST');

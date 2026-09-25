@@ -90,6 +90,10 @@ export class PodcastService {
         let author = '';
         let artwork = '';
         let link = '';
+        let channelXml = xml;
+        let language = '';
+        let pubDate = '';
+        let category = '';
 
         if (isAtom) {
             title = getTagContent(xml, 'title') || 'YouTube Podcast Feed';
@@ -98,7 +102,7 @@ export class PodcastService {
             link = getAttribute(xml, 'link', 'href') || originalUrl;
         } else {
             const channelMatch = xml.match(/<channel[^>]*>([\s\S]*?)<\/channel>/i);
-            const channelXml = channelMatch ? channelMatch[1] : xml;
+            channelXml = channelMatch ? channelMatch[1] : xml;
 
             title = getTagContent(channelXml, 'title') || 'Untitled Podcast';
             description = getTagContent(channelXml, 'description') || getTagContent(channelXml, 'summary');
@@ -114,6 +118,13 @@ export class PodcastService {
                 artwork = artwork.replace(/^http:\/\//i, 'https://');
             }
         }
+
+        language = getTagContent(channelXml, 'language');
+        pubDate =
+            getTagContent(channelXml, 'pubDate') ||
+            getTagContent(channelXml, 'published') ||
+            getTagContent(channelXml, 'updated');
+        category = getAttribute(channelXml, 'itunes:category', 'text') || getAttribute(channelXml, 'category', 'term');
 
         const items = [];
 
@@ -226,6 +237,9 @@ export class PodcastService {
             artwork: artwork || (items.length > 0 ? items[0].artwork : ''),
             link: link || originalUrl,
             feedUrl: originalUrl,
+            language,
+            pubDate,
+            category,
             episodesCount: items.length,
             updatedAt: new Date().toISOString(),
             episodes: items.slice(0, 2000)

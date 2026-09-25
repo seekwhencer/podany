@@ -1,8 +1,10 @@
 import { Subscription } from '../models/Subscription.js';
+import { ImageService } from './imageService.js';
 
 export class SubscriptionService {
   constructor(deps = {}) {
     this.subscriptions = deps.subscriptions ?? new Subscription();
+    this.images = deps.imageService ?? new ImageService(deps.config);
   }
 
   async listSubscriptions(userId) {
@@ -10,16 +12,18 @@ export class SubscriptionService {
     return { feeds };
   }
 
-  async addSubscription({ userId, feedUrl, title = '' }) {
+  async addSubscription({ userId, feedUrl, title = '', artwork = '', description = '', category = '', language = '', pubDate = '' }) {
     const id = this.subscriptions.generateId('sub_');
+    let image = '';
+    if (artwork) {
+      try {
+        image = await this.images.downloadAndGenerate(artwork);
+      } catch (err) {
+        console.error(`[server] Could not generate artwork thumbnail for ${feedUrl}:`, err.message);
+      }
+    }
 
-    // here the image converter
-    // create the image field
-    
-
-
-
-    await this.subscriptions.upsert({ id, userId, feedUrl, title });
+    await this.subscriptions.upsert({ id, userId, feedUrl, title, artwork, image, description, category, language, pubDate });
     return { success: true, feedUrl, id };
   }
 

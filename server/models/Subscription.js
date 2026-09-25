@@ -8,17 +8,17 @@ export class Subscription extends BaseModel {
 
   async listByUser(userId) {
     return this.find(
-      'SELECT feed_url, title, image, created_at FROM subscriptions WHERE user_id = ? ORDER BY created_at ASC',
+      'SELECT feed_url, title, artwork, description, category, language, pubDate, created_at FROM subscriptions WHERE user_id = ? ORDER BY created_at ASC',
       [userId]
     );
   }
 
-  async upsert({ id, userId, feedUrl, title = '', image = '' }) {
+  async upsert({ id, userId, feedUrl, title = '', artwork = '', image = '', description = '', category = '', language = '', pubDate = '' }) {
     return this.execute(
-      `INSERT INTO subscriptions (id, user_id, feed_url, title, image)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE title = VALUES(title), image = VALUES(image)`,
-      [id, userId, feedUrl, title, image]
+      `INSERT INTO subscriptions (id, user_id, feed_url, title, artwork, image, description, category, language, pubDate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE title = VALUES(title), artwork = VALUES(artwork), image = VALUES(image), description = VALUES(description), category = VALUES(category), language = VALUES(language), pubDate = VALUES(pubDate)`,
+      [id, userId, feedUrl, title, artwork, image, description, category, language, pubDate]
     );
   }
 

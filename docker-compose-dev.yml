@@ -66,7 +66,7 @@ services:
     volumes:
       - ./public:/app/public
       - ./server:/app/server
-      - ./downloads:/app/downloads
+      - ./data:/app/data
       - ./swagger.yml:/app/swagger.yml:ro
     healthcheck:
       test:
