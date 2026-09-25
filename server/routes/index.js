@@ -6,7 +6,9 @@ import { AuthRoutes } from './AuthRoutes.js';
 import { SubscriptionRoutes } from './SubscriptionRoutes.js';
 import { PlaybackRoutes } from './PlaybackRoutes.js';
 import { UserRoutes } from './UserRoutes.js';
-import { FeedRoutes, AudioProxyRoutes, DownloadsRoutes } from './FeedRoutes.js';
+import { FeedRoutes } from './FeedRoutes.js';
+import { AudioProxyRoutes } from './AudioProxyRoutes.js';
+import { DownloadsRoutes } from './DownloadRoutes.js';
 
 export function createAppRouter(deps = {}) {
   const router = Router();
