@@ -67,6 +67,7 @@ services:
       - ./public:/app/public
       - ./server:/app/server
       - ./downloads:/app/downloads
+      - ./swagger.yml:/app/swagger.yml:ro
     healthcheck:
       test:
         - CMD
@@ -92,6 +93,20 @@ services:
       UPLOAD_LIMIT: 512M
     ports:
       - "8081:80"
+    restart: unless-stopped
+
+  podany_swagger:
+    image: swaggerapi/swagger-ui:latest
+    container_name: podany_swagger
+    depends_on:
+      - podany_app
+    volumes:
+      - ./swagger.yml:/app/swagger.yml
+    environment:
+      URLS: '[{"name":"Podany API","url":"/swagger.yml"}]'
+      SWAGGER_JSON: /app/swagger.yml
+    ports:
+      - "8080:8080"
     restart: unless-stopped
 
 volumes:

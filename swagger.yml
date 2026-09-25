@@ -1,0 +1,521 @@
+openapi: 3.0.3
+info:
+  title: Podany API
+  description: Private podcast RSS feed aggregator and web player API.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8788
+    description: Local dev server
+security:
+  - cookieAuth: []
+  - sessionTokenHeader: []
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: podcast_session
+    sessionTokenHeader:
+      type: apiKey
+      in: header
+      name: x-session-token
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        color:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    Session:
+      type: object
+      properties:
+        success:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/User'
+        sessionToken:
+          type: string
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        feed_url:
+          type: string
+        title:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    Download:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        episode_guid:
+          type: string
+        title:
+          type: string
+        audio_url:
+          type: string
+        subscription_id:
+          type: integer
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    PlaybackPosition:
+      type: object
+      properties:
+        episode_guid:
+          type: string
+        position_seconds:
+          type: number
+        completed:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+    Feed:
+      type: object
+      properties:
+        url:
+          type: string
+        title:
+          type: string
+        episodes:
+          type: array
+          items:
+            type: object
+            properties:
+              guid:
+                type: string
+              title:
+                type: string
+              audio_url:
+                type: string
+              published:
+                type: string
+                format: date-time
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+paths:
+  /auth/send-link:
+    post:
+      tags:
+        - Auth
+      summary: Send a magic link login email
+      description: Only available when magic link login is enabled.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                origin:
+                  type: string
+      responses:
+        '200':
+          description: Magic link dispatched
+        '403':
+          $ref: '#/components/responses/Error'
+  /auth/verify:
+    post:
+      tags:
+        - Auth
+      summary: Verify a magic link token and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Session started, session cookie set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Error'
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in with email + password (or magic link if no password)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Session started, session cookie set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Error'
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: End the current session
+      responses:
+        '200':
+          description: Session cleared, session cookie removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Error'
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get the currently authenticated user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Error'
+  /subscription/list:
+    get:
+      tags:
+        - Subscriptions
+      summary: List subscriptions for the current user
+      responses:
+        '200':
+          description: Subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+  /subscription:
+    post:
+      tags:
+        - Subscriptions
+      summary: Add a subscription and enqueue new episodes for download
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feedUrl:
+                  type: string
+                title:
+                  type: string
+      responses:
+        '200':
+          description: Created subscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags:
+        - Subscriptions
+      summary: Remove a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feedUrl:
+                  type: string
+      responses:
+        '200':
+          description: Subscription removed
+        '400':
+          $ref: '#/components/responses/Error'
+  /playback/positions:
+    get:
+      tags:
+        - Playback
+      summary: List saved playback positions for the current user
+      responses:
+        '200':
+          description: Playback positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlaybackPosition'
+    post:
+      tags:
+        - Playback
+      summary: Save a playback position for an episode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                episodeGuid:
+                  type: string
+                positionSeconds:
+                  type: number
+                completed:
+                  type: boolean
+      responses:
+        '200':
+          description: Saved playback position
+        '400':
+          $ref: '#/components/responses/Error'
+  /user/options:
+    get:
+      tags:
+        - Users
+      summary: Get the current user's options
+      responses:
+        '200':
+          description: User options
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      tags:
+        - Users
+      summary: Update the current user's options
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                color:
+                  type: string
+      responses:
+        '200':
+          description: Updated user options
+        '404':
+          $ref: '#/components/responses/Error'
+  /feed/fetch:
+    post:
+      tags:
+        - Feed
+      summary: Fetch and parse one or more RSS feeds
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urls:
+                  type: array
+                  items:
+                    type: string
+                url:
+                  type: string
+      responses:
+        '200':
+          description: Parsed feeds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feeds:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Feed'
+        '400':
+          $ref: '#/components/responses/Error'
+  /audio-proxy:
+    get:
+      tags:
+        - Audio Proxy
+      summary: Proxy an audio file with range support and CORS headers
+      security: []
+      parameters:
+        - name: url
+          in: query
+          required: true
+          description: External audio URL to proxy
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Streamed audio content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/Error'
+  /downloads:
+    get:
+      tags:
+        - Downloads
+      summary: List downloads for the current user
+      responses:
+        '200':
+          description: Downloads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  downloads:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Download'
+    post:
+      tags:
+        - Downloads
+      summary: Register a download for an episode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                episodeGuid:
+                  type: string
+                title:
+                  type: string
+                audioUrl:
+                  type: string
+      responses:
+        '200':
+          description: Registered download
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  download:
+                    $ref: '#/components/schemas/Download'
+        '400':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags:
+        - Downloads
+      summary: Remove a download registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                episodeGuid:
+                  type: string
+      responses:
+        '200':
+          description: Download removed
+        '400':
+          $ref: '#/components/responses/Error'
+  /downloads/{id}/start:
+    post:
+      tags:
+        - Downloads
+      summary: Start a registered download
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Download started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  download:
+                    $ref: '#/components/schemas/Download'
+        '404':
+          $ref: '#/components/responses/Error'
+  /downloads/{id}:
+    delete:
+      tags:
+        - Downloads
+      summary: Delete a download record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Download deleted
+        '404':
+          $ref: '#/components/responses/Error'

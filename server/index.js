@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'node:fs';
 import session from 'express-session';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -40,6 +41,15 @@ export function createApp(deps = {}) {
   const homePage = config.environment === 'development' ? 'dev.html' : 'index.html';
 
   app.use('/api', createAppRouter({ ...deps, config }));
+
+  // Serve the OpenAPI spec for Swagger UI (dev stack).
+  if (config.environment === 'development') {
+    const swaggerSpecPath = join(process.cwd(), 'swagger.yml');
+    app.get('/swagger.yml', (req, res, next) => {
+      if (!fs.existsSync(swaggerSpecPath)) return next();
+      res.type('application/x-yaml').sendFile(swaggerSpecPath);
+    });
+  }
 
   // Serve the configured home page for the root path before express.static,
   // which would otherwise always serve index.html as its default document.
