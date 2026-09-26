@@ -6,6 +6,14 @@ import { ReadableStream } from 'node:stream/web';
 import config from '../config/index.js';
 import { createAppRouter } from './index.js';
 
+function makeRecordingEmitter() {
+  const events = [];
+  return {
+    events,
+    emit(args) { events.push(args); }
+  };
+}
+
 const fakeAuth = {
   sentLinks: [],
   revoked: [],
@@ -35,7 +43,8 @@ const fakeSync = {
   async addSubscription(args) { this.calls.push(['addSubscription', args]); return { success: true, feedUrl: args.feedUrl, id: 'sub_test' }; },
   async removeSubscription(userId, feedUrl) { this.calls.push(['removeSubscription', userId, feedUrl]); return { success: true, removed: feedUrl }; },
   async listPositions(userId) { this.calls.push(['listPositions', userId]); return { positions: {} }; },
-  async savePosition(args) { this.calls.push(['savePosition', args]); return { success: true, episodeGuid: args.episodeGuid }; }
+  async savePosition(args) { this.calls.push(['savePosition', args]); return { success: true, episodeGuid: args.episodeGuid }; },
+  async removePosition(userId, episodeGuid) { this.calls.push(['removePosition', userId, episodeGuid]); return { success: true, episodeGuid }; }
 };
 
 const fakeFeed = {
@@ -561,4 +570,88 @@ test('auth login with a password calls loginWithPassword and sets the cookie', a
   assert.equal(res.status, 200);
   assert.equal(res.body.sessionToken, 'pw-hunter2');
   assert.ok(res.setCookie.some((c) => c.startsWith('podcast_session=')));
+});
+
+test('subscription add emits subscription:added via the live emitter', async (t) => {
+  const emitter = makeRecordingEmitter();
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed }, liveEmitter: emitter });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  await request(server, 'POST', '/api/subscription', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss' } });
+
+  const added = emitter.events.find((e) => e.type === 'subscription:added');
+  assert.ok(added);
+  assert.equal(added.userId, 'usr_1');
+  assert.equal(added.payload.feedUrl, 'https://example.com/rss');
+  assert.equal(added.payload.id, 'sub_test');
+});
+
+test('subscription delete emits subscription:removed via the live emitter', async (t) => {
+  const emitter = makeRecordingEmitter();
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed }, liveEmitter: emitter });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  await request(server, 'DELETE', '/api/subscription', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss' } });
+
+  const removed = emitter.events.find((e) => e.type === 'subscription:removed');
+  assert.ok(removed);
+  assert.equal(removed.userId, 'usr_1');
+  assert.equal(removed.payload.feedUrl, 'https://example.com/rss');
+});
+
+test('playback save position emits playback:position-updated via the live emitter', async (t) => {
+  const emitter = makeRecordingEmitter();
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, liveEmitter: emitter });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  await request(server, 'POST', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeGuid: 'ep_9', positionSeconds: 42, completed: true } });
+
+  const updated = emitter.events.find((e) => e.type === 'playback:position-updated');
+  assert.ok(updated);
+  assert.equal(updated.userId, 'usr_1');
+  assert.equal(updated.payload.episodeGuid, 'ep_9');
+  assert.equal(updated.payload.positionSeconds, 42);
+  assert.equal(updated.payload.completed, true);
+});
+
+test('playback delete position emits playback:position-updated with completed false', async (t) => {
+  const emitter = makeRecordingEmitter();
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, liveEmitter: emitter });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  await request(server, 'DELETE', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeGuid: 'ep_9' } });
+
+  const updated = emitter.events.find((e) => e.type === 'playback:position-updated');
+  assert.ok(updated);
+  assert.equal(updated.userId, 'usr_1');
+  assert.equal(updated.payload.episodeGuid, 'ep_9');
+  assert.equal(updated.payload.completed, false);
+  assert.equal(updated.payload.positionSeconds, null);
+});
+
+test('logout emits session:closed to the logged-out user via the live emitter', async (t) => {
+  const emitter = makeRecordingEmitter();
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, liveEmitter: emitter });
+  fakeAuth.resolved = { 'xyz': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  await request(server, 'POST', '/api/auth/logout', { headers: { cookie: 'podcast_session=xyz' } });
+
+  const closed = emitter.events.find((e) => e.type === 'session:closed');
+  assert.ok(closed);
+  assert.equal(closed.userId, 'usr_1');
+  assert.equal(closed.payload.reason, 'logout');
+});
+
+test('live events are no-ops when no emitter is wired', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'POST', '/api/subscription', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss' } });
+  assert.equal(res.status, 200);
 });

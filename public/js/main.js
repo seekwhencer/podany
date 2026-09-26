@@ -21,132 +21,155 @@ import PlaybackManager from './playback.js';
 import QueueManager from './queue.js';
 import SyncManager from './sync.js';
 import TimelineManager from './timeline.js';
+import LiveClient from './live/LiveClient.js';
 
-const app = {};
-app.config = new Config();
-app.state = new AppState();
-app.elements = new Elements();
-app.api = new ApiClient(app.config, app.state);
-app.storage = new Storage(app.config, app.api, app.state);
-app.theme = new ThemeManager(app);
-app.modal = new ModalManager(app);
-app.playerUI = new PlayerUI(app);
-app.auth = new AuthManager(app);
-app.feeds = new FeedsManager(app);
-app.playback = new PlaybackManager(app);
-app.queue = new QueueManager(app);
-app.sync = new SyncManager(app);
-app.timeline = new TimelineManager(app);
-
-// ── Boot sequence ───────────────────────────────────────────────────────────
-
-// Boot error handler (Schritt 7): surface server errors instead of a silent
-// empty state. Auth failures (401/403) re-trigger the auth flow; other errors
-// (offline, 5xx, malformed response) are shown in the status banner.
-function handleBootError(err) {
-    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        app.state.sessionToken = '';
-        app.storage.saveSessionToken('');
-        app.auth.updateSyncStatusUI('Session Expired', '', false);
-        app.auth.showAuthModal();
-        return;
-    }
-    const detail = (err && err.message) ? err.message : String(err);
-    console.error('Boot: could not load persistent data from server', detail);
-    app.modal.showStatus(`Could not load data from the server (${detail}). Check your connection and try again.`);
-}
-
-// Auth-first async boot. Validates the session with the server first, then
-// loads the persistent data (feeds, positions, downloads), populates the
-// in-memory cache + transient queue, and finally renders the UI. A loading
-// status is shown while the server calls are in flight.
-async function initApp() {
-    app.modal.showStatus('Starte Podany...');
-
-    // 1. Session-/Token-Param aus der URL ziehen (Magic-Link): in den State,
-    //    URL bereinigen. MUSS vor checkAuth laufen.
-    app.auth.checkUrlSessionParam();
-
-    // 2. Session vom Server validieren (auth-first). Bei erfolgreichem
-    //    Login/Session werden Feeds + Positionen bereits syncronisiert.
-    await app.auth.checkAuth();
-
-    // 3. Persistente Daten vom Server laden (Feeds/Positionen).
-    //    Fehler werden nicht verschluckt: 401/403 -> Auth-Flow, sonst
-    //    Ladefehler an die UI statt eines stillen leeren Zustands (Schritt 7).
-    app.modal.showStatus('Lade Feeds und Positionen...');
-    try {
-        app.state.feeds = await app.storage.loadFeeds();
-        app.state.playbackPositions = await app.storage.loadPositions();
-    } catch (err) {
-        handleBootError(err);
-        return;
+export class App {
+    constructor() {
+        this.config = new Config();
+        this.state = new AppState();
+        this.elements = new Elements();
+        this.api = new ApiClient(this.config, this.state);
+        this.storage = new Storage(this.config, this.api, this.state);
+        this.theme = new ThemeManager(this);
+        this.modal = new ModalManager(this);
+        this.playerUI = new PlayerUI(this);
+        this.auth = new AuthManager(this);
+        this.feeds = new FeedsManager(this);
+        this.playback = new PlaybackManager(this);
+        this.queue = new QueueManager(this);
+        this.sync = new SyncManager(this);
+        this.timeline = new TimelineManager(this);
     }
 
-    // 4. Cache-Arbeitsspeicher befüllen (flüchtig) + Queue (client-only).
-    const cache = app.storage.loadCache();
-    if (cache.episodes) app.state.allEpisodes = cache.episodes;
-    if (cache.metadata) app.state.feedMetadata = cache.metadata;
-    app.queue.loadQueue();
-
-    // 5. UI rendern.
-    if (app.state.allEpisodes && app.state.allEpisodes.length > 0) {
-        app.timeline.processAndSortEpisodes();
-        app.timeline.renderTimeline();
-        app.timeline.renderContinueShelf();
-        app.feeds.renderFeedsGrid();
-    }
-
-    app.modal.hideStatus();
-}
-
-function wireAllEvents() {
-    app.theme.wireThemeButtons();
-    app.modal.init();
-    app.playerUI.init();
-    app.auth.wireEvents();
-    app.feeds.wireEvents();
-    app.queue.wireEvents();
-    app.timeline.wireEvents();
-}
-
-function refreshStaticUI() {
-    app.queue.updateQueueUI();
-    app.feeds.updateFeedCountUI();
-    app.feeds.updateDockVisibility();
-}
-
-function setupNetworkListeners() {
-    const updateStatus = () => {
-        if (!app.elements.offlineBadge) return;
-        app.elements.offlineBadge.classList.toggle('hidden', navigator.onLine);
-    };
-    window.addEventListener('online', updateStatus);
-    window.addEventListener('offline', updateStatus);
-    window.addEventListener('resize', () => {
-        if (app.state.continueCollapsed && app.state.allEpisodes.length > 0) {
-            app.timeline.renderContinueShelf();
+    // Boot error handler (Schritt 7): surface server errors instead of a silent
+    // empty state. Auth failures (401/403) re-trigger the auth flow; other errors
+    // (offline, 5xx, malformed response) are shown in the status banner.
+    handleBootError(err) {
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+            this.state.sessionToken = '';
+            this.storage.saveSessionToken('');
+            this.auth.updateSyncStatusUI('Session Expired', '', false);
+            this.auth.showAuthModal();
+            return;
         }
-    });
-    updateStatus();
-}
+        const detail = (err && err.message) ? err.message : String(err);
+        console.error('Boot: could not load persistent data from server', detail);
+        this.modal.showStatus(`Could not load data from the server (${detail}). Check your connection and try again.`);
+    }
 
-function initServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => { });
+    // Auth-first async boot. Validates the session with the server first, then
+    // loads the persistent data (feeds, positions, downloads), populates the
+    // in-memory cache + transient queue, and finally renders the UI. A loading
+    // status is shown while the server calls are in flight.
+    async initApp() {
+        this.modal.showStatus('Starte Podany...');
+
+        // 1. Session-/Token-Param aus der URL ziehen (Magic-Link): in den State,
+        //    URL bereinigen. MUSS vor checkAuth laufen.
+        this.auth.checkUrlSessionParam();
+
+        // 2. Session vom Server validieren (auth-first). Bei erfolgreichem
+        //    Login/Session werden Feeds + Positionen bereits syncronisiert.
+        await this.auth.checkAuth();
+
+        // 3. Persistente Daten vom Server laden (Feeds/Positionen).
+        //    Fehler werden nicht verschluckt: 401/403 -> Auth-Flow, sonst
+        //    Ladefehler an die UI statt eines stillen leeren Zustands (Schritt 7).
+        this.modal.showStatus('Lade Feeds und Positionen...');
+        try {
+            this.state.feeds = await this.storage.loadFeeds();
+            this.state.playbackPositions = await this.storage.loadPositions();
+        } catch (err) {
+            this.handleBootError(err);
+            return;
+        }
+
+        // 4. Cache-Arbeitsspeicher befüllen (flüchtig) + Queue (client-only).
+        const cache = this.storage.loadCache();
+        if (cache.episodes) this.state.allEpisodes = cache.episodes;
+        if (cache.metadata) this.state.feedMetadata = cache.metadata;
+        this.queue.loadQueue();
+
+        // 5. UI rendern.
+        if (this.state.allEpisodes && this.state.allEpisodes.length > 0) {
+            this.timeline.processAndSortEpisodes();
+            this.timeline.renderTimeline();
+            this.timeline.renderContinueShelf();
+            this.feeds.renderFeedsGrid();
+        }
+
+        this.modal.hideStatus();
+    }
+
+    // Opens the live WebSocket once a session token is available (boot or after
+    // login). Idempotent: reuses the existing LiveClient if one is already up.
+    async ensureLiveConnection() {
+        if (!this.state.sessionToken) return;
+        if (this.live && this.live.isActive) return;
+        if (this.live) {
+            return this.live.forceReconnect();
+        } else {
+            this.live = new LiveClient(this);
+            return this.live.connect();
+        }
+    }
+
+    wireAllEvents() {
+        this.theme.wireThemeButtons();
+        this.modal.init();
+        this.playerUI.init();
+        this.auth.wireEvents();
+        this.feeds.wireEvents();
+        this.queue.wireEvents();
+        this.timeline.wireEvents();
+    }
+
+    refreshStaticUI() {
+        this.queue.updateQueueUI();
+        this.feeds.updateFeedCountUI();
+        this.feeds.updateDockVisibility();
+    }
+
+    setupNetworkListeners() {
+        const updateStatus = () => {
+            if (!this.elements.offlineBadge) return;
+            this.elements.offlineBadge.classList.toggle('hidden', navigator.onLine);
+        };
+        window.addEventListener('online', () => {
+            if (this.live && typeof this.live.forceReconnect === 'function') {
+                this.live.forceReconnect();
+            }
+        });
+        window.addEventListener('offline', updateStatus);
+        window.addEventListener('resize', () => {
+            if (this.state.continueCollapsed && this.state.allEpisodes.length > 0) {
+                this.timeline.renderContinueShelf();
+            }
+        });
+        updateStatus();
+    }
+
+    initServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => { });
+        }
+    }
+
+    async init() {
+        this.theme.init();
+        await this.initApp();
+        await this.ensureLiveConnection();
+        this.wireAllEvents();
+        this.playback.setupAudioEngines();
+        this.setupNetworkListeners();
+        this.refreshStaticUI();
+        this.initServiceWorker();
+        this.modal.initNavigationRoute();
     }
 }
 
-app.init = async function init() {
-    app.theme.init();
-    await initApp();
-    wireAllEvents();
-    app.playback.setupAudioEngines();
-    setupNetworkListeners();
-    refreshStaticUI();
-    initServiceWorker();
-    app.modal.initNavigationRoute();
-};
+// Boot the single app instance once the DOM is ready.
+const app = new App();
 
 // Wire the YouTube Iframe API callback (loaded as a classic <script> before the
 // module bundle). Fires window.onYouTubeIframeAPIReady once the API is ready.

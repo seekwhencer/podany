@@ -13,6 +13,9 @@ import { createAppRouter } from './routes/index.js';
 import { ImageRoutes } from './routes/ImageRoutes.js';
 import { User } from './models/User.js';
 import { hashPassword } from './utils/password.js';
+import { AuthService } from './services/authService.js';
+import { SessionStore } from './services/sessionStore.js';
+import { LiveHub } from './live/LiveHub.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -116,7 +119,10 @@ export async function seedDefaultUser() {
 }
 
 export async function start(deps = {}) {
-  const app = createApp(deps);
+  const sessions = deps.sessions ?? new SessionStore(config.sessionTtlSeconds);
+  const auth = deps.auth ?? new AuthService({ ...deps.authDeps, config, sessions });
+  const liveHub = deps.liveHub ?? new LiveHub({ auth, config });
+  const app = createApp({ ...deps, auth, sessions, liveHub });
 
   try {
     const attempts = await waitForDb();
@@ -141,12 +147,16 @@ export async function start(deps = {}) {
     console.log(`[server] Podany listening on http://${address}:${port}`);
     console.log(
       `[server] config: APP_URL=${config.appUrl} AUTH_MODE=${config.authMode} ` +
-      `email=${config.resendEnabled ? 'resend' : 'local'} cookieSecure=${config.cookieSecure}`
+      `email=${config.resendEnabled ? 'resend' : 'local'} cookieSecure=${config.cookieSecure}` +
+      ` websocket=${config.websocketPath}`
     );
   });
 
+  liveHub.attach(server);
+
   async function shutdown(signal) {
     console.log(`\n[server] Received ${signal}, shutting down...`);
+    liveHub.close();
     server.close(() => {
       db.close().finally(() => process.exit(0));
     });

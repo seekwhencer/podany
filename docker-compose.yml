@@ -57,8 +57,23 @@ services:
       DEFAULT_USER_EMAIL: ${DEFAULT_USER_EMAIL:-admin@podany.local}
       DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD:-change-me}
       DEFAULT_USER_COLOR: ${DEFAULT_USER_COLOR:-#d8cdbe}
+      # Live-Events über /live (gleicher Port wie HTTP). Bei Port-80-Plain-HTTP
+      # muss COOKIE_SECURE=false sein (siehe .env.example). Reverse-Proxy-Header
+      # (Upgrade/Connection, proxy_read_timeout) am Proxy konfigurieren.
+      WEBSOCKET_PATH: ${WEBSOCKET_PATH:-/live}
+      WS_HEARTBEAT_INTERVAL_MS: ${WS_HEARTBEAT_INTERVAL_MS:-30000}
+      WS_HEARTBEAT_TIMEOUT_MS: ${WS_HEARTBEAT_TIMEOUT_MS:-60000}
     ports:
       - "8788:8788"
+    # Port-80-Szenario (direkter Bind, kein Proxy): PORT auf "80" und Mapping auf
+    # "80:80" setzen; der Container benötigt dann die Fähigkeit, einen Low-Level-Port
+    # zu binden — z. B. via `cap_add: [CAP_NET_BIND_SERVICE]` oder Start als nicht-root
+    # hinter einem Proxy. Plain-HTTP ⇒ COOKIE_SECURE=false.
+    #
+    # ports:
+    #   - "80:80"
+    # cap_add:
+    #   - CAP_NET_BIND_SERVICE
     volumes:
       - ./public:/app/public
       - ./server:/app/server

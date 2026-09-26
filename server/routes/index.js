@@ -9,6 +9,7 @@ import { UserRoutes } from './UserRoutes.js';
 import { FeedRoutes } from './FeedRoutes.js';
 import { AudioProxyRoutes } from './AudioProxyRoutes.js';
 import { DownloadsRoutes } from './DownloadRoutes.js';
+import { LiveEmitter } from '../live/emitter.js';
 
 export function createAppRouter(deps = {}) {
   const router = Router();
@@ -19,13 +20,16 @@ export function createAppRouter(deps = {}) {
   const auth = deps.auth ?? new AuthService({ ...authDeps, sessions });
   const requireAuth = createAuthMiddleware({ ...authDeps, sessions, auth });
 
-  router.use('/auth', new AuthRoutes({ ...authDeps, sessions, auth }).getRouter());
-  router.use('/subscription', requireAuth, new SubscriptionRoutes({ ...(deps.feed ?? {}), config, subscriptions: deps.subscriptions ?? deps.sync }).getRouter());
-  router.use('/playback', requireAuth, new PlaybackRoutes({ ...(deps.feed ?? {}), playback: deps.playback ?? deps.sync }).getRouter());
+  const liveHub = deps.hub ?? deps.liveHub ?? null;
+  const liveEmitter = deps.liveEmitter ?? (liveHub ? new LiveEmitter({ hub: liveHub }) : null);
+
+  router.use('/auth', new AuthRoutes({ ...authDeps, sessions, auth, liveEmitter }).getRouter());
+  router.use('/subscription', requireAuth, new SubscriptionRoutes({ ...(deps.feed ?? {}), config, subscriptions: deps.subscriptions ?? deps.sync, liveEmitter }).getRouter());
+  router.use('/playback', requireAuth, new PlaybackRoutes({ ...(deps.feed ?? {}), playback: deps.playback ?? deps.sync, liveEmitter }).getRouter());
   router.use('/user', requireAuth, new UserRoutes({ userService: deps.userService }).getRouter());
   router.use('/feed', new FeedRoutes({ ...(deps.feed ?? {}), config, requireAuth, subscriptions: deps.subscriptions ?? deps.sync, downloads: deps.downloads }).getRouter());
   router.use('/audio-proxy', new AudioProxyRoutes({ ...(deps.feed ?? {}), config }).getRouter());
-  router.use('/downloads', new DownloadsRoutes({ ...(deps.feed ?? {}), config, authDeps, sessions, auth }).getRouter());
+  router.use('/downloads', new DownloadsRoutes({ ...(deps.feed ?? {}), config, authDeps, sessions, auth, liveEmitter }).getRouter());
 
   return router;
 }

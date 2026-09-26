@@ -273,6 +273,38 @@ volumes:
 - App führt beim Start die DB-Migration aus (`migrator.js`) — kein separater Setup-Schritt nötig.
 - Healthcheck: App wartet auf DB-Erreichbarkeit, wiederholt Verbindungsversuche.
 
+### 11.1 WebSocket / Live-Events (`/live`)
+
+Die Live-Events laufen über einen WebSocket auf **dem gleichen Port** wie HTTP (kein
+eigener WS-Port). Der Endpunkt ist `WEBSOCKET_PATH` (Default `/live`); die Werte für
+Heartbeat stehen in `.env.example` (`WS_HEARTBEAT_INTERVAL_MS`, `WS_HEARTBEAT_TIMEOUT_MS`).
+
+**Direkter Bind auf Port 80**
+
+- `PORT=80` setzen und Mapping `80:80` (bzw. Proxy-Interne `8788`).
+- Der Container benötigt die Fähigkeit, einen Low-Level-Port zu binden:
+  `cap_add: [CAP_NET_BIND_SERVICE]` in `docker-compose.yml` oder Start als nicht-root
+  hinter einem Proxy.
+- Plain-HTTP ⇒ `COOKIE_SECURE=false` (Cookie sonst nicht gesendet). Der Client leitet
+  das Protokoll aus der Seiten-URL ab (`ws://` bei HTTP).
+
+**Reverse Proxy (empfohlen, TLS-Termination)**
+
+Ein Proxy (nginx/Caddy) terminiert HTTPS (`443` → `wss://`) und leitet an die App intern
+(z. B. `8788`) weiter. Die Upgrade-Header **müssen** weitergeleitet werden:
+
+```nginx
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+proxy_http_version 1.1;
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-For $proxy_x_forwarded_for;
+proxy_read_timeout 3600s;   # WebSocket hält Verbindung offen
+```
+
+Route `/live` als Upgrade-Route ausweisen, alle anderen Routes unverändert. Der Client
+verwendet hinter TLS `wss://`.
+
 ---
 
 ## 12. Umstellungs-/Migrationsstrategie

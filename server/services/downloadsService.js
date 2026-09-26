@@ -3,6 +3,13 @@ import path from 'node:path';
 import { Downloads } from '../models/Downloads.js';
 import { isValidExternalUrl } from '../utils/url.js';
 import { ImageService } from './imageService.js';
+import {
+  EVENT_IMAGE_COMPLETED,
+  EVENT_THUMBNAIL_READY,
+  EVENT_DOWNLOAD_COMPLETED,
+  EVENT_DOWNLOAD_FAILED,
+  EVENT_DOWNLOAD_PROGRESS
+} from '../live/protocol.js';
 
 const CONTENT_TYPES = {
     mp3: 'audio/mpeg',
@@ -29,8 +36,27 @@ export class DownloadsService {
         this.fetchImpl = deps.fetch ?? globalThis.fetch;
         this.concurrency = this._resolveConcurrency(deps);
         this.images = deps.imageService ?? new ImageService(deps.config);
+        this.liveEmitter = deps.liveEmitter ?? null;
         this.queue = [];
         this.activeCount = 0;
+    }
+
+    _emit(type, payload, userId) {
+        if (!this.liveEmitter || !userId) return;
+        try {
+            this.liveEmitter.emit({ userId, type, payload });
+        } catch (err) {
+            console.error('[server] LiveEmitter failed to deliver download event:', err.message);
+        }
+    }
+
+    _contentLength(response) {
+        const headers = response?.headers;
+        if (!headers) return NaN;
+        const raw = typeof headers.get === 'function' ? headers.get('content-length') : headers['content-length'];
+        if (raw == null) return NaN;
+        const value = Number.parseInt(raw, 10);
+        return Number.isFinite(value) ? value : NaN;
     }
 
     _resolveConcurrency(deps) {
@@ -83,6 +109,10 @@ export class DownloadsService {
                 console.error(`[server] Could not generate artwork thumbnail for episode ${episodeGuid}:`, err.message);
             }
         }
+        if (image) {
+            this._emit(EVENT_IMAGE_COMPLETED, { episodeGuid, image, artworkUrl: `/images/${image}-full.jpg` }, userId);
+            this._emit(EVENT_THUMBNAIL_READY, { episodeGuid, image, sizes: ['thumb', 'mid', 'full'] }, userId);
+        }
         const id = this.downloads.generateId('dl_');
         await this.downloads.create({
             id,
@@ -113,8 +143,17 @@ export class DownloadsService {
     async startDownload(record) {
         if (!record) throw new Error('Download record not found.');
         const audioUrl = record.audioUrl || record.audio_url;
+        const dlEvent = {
+            id: record.id,
+            episodeGuid: record.episode_guid,
+            subscriptionId: record.subscription_id,
+            title: record.title,
+            duration: record.duration
+        };
+        const emitFailed = (error) => this._emit(EVENT_DOWNLOAD_FAILED, { ...dlEvent, error }, record.user_id);
         if (!audioUrl || !isValidExternalUrl(audioUrl)) {
             await this.downloads.update(record.id, { status: 'failed', error: 'Invalid or disallowed audio URL.' });
+            emitFailed('Invalid or disallowed audio URL.');
             return this.downloads.findById(record.id);
         }
 
@@ -130,16 +169,21 @@ export class DownloadsService {
                     status: 'failed',
                     error: `Upstream HTTP ${response.status}`
                 });
+                emitFailed(`Upstream HTTP ${response.status}`);
                 return this.downloads.findById(record.id);
             }
 
             await fs.mkdir(this.storageDir, { recursive: true });
             let size = 0;
+            const totalBytes = this._contentLength(response);
             const sink = createWriteStream(filePath);
             try {
                 for await (const chunk of response.body) {
                     sink.write(chunk);
                     size += Buffer.byteLength(chunk);
+                    if (Number.isFinite(totalBytes) && totalBytes > 0) {
+                        this._emit(EVENT_DOWNLOAD_PROGRESS, { ...dlEvent, progress: Math.min(99, Math.round((size / totalBytes) * 100)) }, record.user_id);
+                    }
                 }
             } finally {
                 await new Promise((resolve, reject) => {
@@ -154,8 +198,10 @@ export class DownloadsService {
                 progress: 100,
                 received_at: Math.floor(Date.now() / 1000)
             });
+            this._emit(EVENT_DOWNLOAD_COMPLETED, { ...dlEvent, fileSize: size, filename }, record.user_id);
         } catch (err) {
             await this.downloads.update(record.id, { status: 'failed', error: String(err.message || err) });
+            emitFailed(String(err.message || err));
             try {
                 await fs.rm(filePath, { force: true });
             } catch (e) { }

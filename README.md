@@ -2,6 +2,36 @@
 
 Private podcast RSS feed aggregator and web player, self-hosted with Express and MariaDB.
 
+## This fork
+Thanks to Steffen, who was basically written this thing with a frontier model, based on ONE js file and ONE css file.  
+The basic idea of his project is a "serverless" cloud app with the deep use of browser's caching system.  
+
+
+## Selfhosting Edition
+
+This Fork was done by Matthias Kallenbach, [skwncr.net](https://skwncr.net)  
+Using VS Code + Kilo Code + local AI on 32G VRAM with llama.cpp and Tiel Coder 35B (MTP UD Q6) on 220K tokens context per session.
+
+What is done and what it do now:
+
+- Splitting a over 4K row js file for the frontend in pieces.
+- Splitting a large flatten css file in a semantic set of imports with variables 
+- A express server works in the brackground now.
+- A database (MariaDB) works in the background now.
+- The sever is now the source of truth
+- All audio files will be stored locally
+- All images will be stored locally
+- Thumbnails will be generated from images
+- User login and user session
+- Up Next Queue stored in the database
+- A websocket endpoint and a messaging system between client and server
+- Play state will be stored in the database
+- Added a bundler with esbuild
+- Docker setup
+- Database schema
+- Tests ...
+- ... and more
+
 ## Screenshots
 
 <table>
@@ -186,7 +216,6 @@ Runs the Node.js built-in test runner across the backend units (services, models
 ## License
 
 MIT License. Copyright (c) 2026 Steffen Klaue.  
+MIT License. Copyright (c) 2026 Matthias Kallenbach.
 
-## Selfhosting Edition
 
-Refactoring, File-Splitting, Server, Database, Docker-Setup by Matthias Kallenbach,  [skwncr.net](https://skwncr.net) using VS Code + Kilo Code + local AI on 32G VRAM with llama.cpp and Tiel Coder 35B (MTP UD Q6) on 220K tokens context per session.

@@ -6,6 +6,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { DownloadsService } from './downloadsService.js';
 
+function makeRecordingEmitter() {
+  const events = [];
+  return {
+    events,
+    emit(args) { events.push(args); }
+  };
+}
+
 class InMemoryDownloads {
   constructor() {
     this.rows = [];
@@ -296,4 +304,124 @@ test('queue drains in FIFO order when concurrency is 1', async () => {
     'https://cdn.example.com/ep-1.mp3',
     'https://cdn.example.com/ep-2.mp3'
   ]);
+});
+
+test('register emits image and thumbnail events when artwork is generated', async () => {
+  const downloads = new InMemoryDownloads();
+  const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'podany-dl-'));
+  const emitter = makeRecordingEmitter();
+  const service = new DownloadsService({
+    downloads,
+    storageDir,
+    imageService: { async downloadAndGenerate() { return 'abc123'; } },
+    liveEmitter: emitter
+  });
+  service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([]) });
+
+  await service.register({
+    userId: 'u1',
+    episodeGuid: 'ep-img',
+    title: 'Art',
+    audioUrl: 'https://cdn.example.com/a.mp3',
+    artwork: 'https://cdn.example.com/art.jpg'
+  });
+
+  const types = emitter.events.map((e) => e.type);
+  assert.ok(types.includes('image:completed'));
+  assert.ok(types.includes('thumbnail:ready'));
+
+  const img = emitter.events.find((e) => e.type === 'image:completed');
+  assert.equal(img.userId, 'u1');
+  assert.equal(img.payload.episodeGuid, 'ep-img');
+  assert.equal(img.payload.image, 'abc123');
+  assert.equal(img.payload.artworkUrl, '/images/abc123-full.jpg');
+
+  const thumb = emitter.events.find((e) => e.type === 'thumbnail:ready');
+  assert.deepEqual(thumb.payload.sizes, ['thumb', 'mid', 'full']);
+});
+
+test('startDownload emits download:completed on success', async () => {
+  const { service, downloads } = await buildDownloads();
+  const emitter = makeRecordingEmitter();
+  service.liveEmitter = emitter;
+  service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([Buffer.from('data')]) });
+
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', title: 'T', audioUrl: 'https://cdn.example.com/ep.mp3' });
+  await waitFor(async () => emitter.events.some((e) => e.type === 'download:completed'));
+
+  const completed = emitter.events.find((e) => e.type === 'download:completed');
+  assert.equal(completed.userId, 'u1');
+  assert.equal(completed.payload.episodeGuid, 'ep-1');
+  assert.equal(completed.payload.filename, `${record.id}.mp3`);
+  assert.ok(completed.payload.fileSize >= 4);
+});
+
+test('startDownload emits download:failed on upstream error', async () => {
+  const { service, downloads } = await buildDownloads();
+  const emitter = makeRecordingEmitter();
+  service.liveEmitter = emitter;
+  service.fetchImpl = async () => ({ ok: false, status: 503, body: null });
+
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep.mp3' });
+  await waitFor(async () => emitter.events.some((e) => e.type === 'download:failed'));
+
+  const failed = emitter.events.find((e) => e.type === 'download:failed');
+  assert.equal(failed.userId, 'u1');
+  assert.match(failed.payload.error, /Upstream HTTP 503/);
+});
+
+test('startDownload emits download:failed for disallowed urls without fetching', async () => {
+  const { service, downloads } = await buildDownloads();
+  const emitter = makeRecordingEmitter();
+  service.liveEmitter = emitter;
+  const now = Math.floor(Date.now() / 1000);
+  downloads.rows.push({
+    id: 'dl_x',
+    user_id: 'u1',
+    episode_guid: 'ep-9',
+    title: '',
+    audio_url: 'http://169.254.169.254/latest/meta-data',
+    filename: null,
+    file_size: 0,
+    status: 'pending',
+    progress: 0,
+    error: null,
+    created_at: now,
+    updated_at: now,
+    received_at: null
+  });
+  const record = await downloads.findById('dl_x');
+  let fetchCalls = 0;
+  service.fetchImpl = async () => {
+    fetchCalls += 1;
+    return { ok: true, status: 200, body: makeBody([]) };
+  };
+  await service.startDownload(record);
+  assert.equal(fetchCalls, 0);
+
+  const failed = emitter.events.find((e) => e.type === 'download:failed');
+  assert.ok(failed);
+  assert.equal(failed.userId, 'u1');
+  assert.match(failed.payload.error, /Invalid or disallowed audio URL/);
+});
+
+test('startDownload emits download:progress while streaming when content-length is known', async () => {
+  const { service, downloads } = await buildDownloads();
+  const emitter = makeRecordingEmitter();
+  service.liveEmitter = emitter;
+  service.fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: (h) => (String(h).toLowerCase() === 'content-length' ? '6' : null) },
+    body: makeBody([Buffer.from('abc'), Buffer.from('def')])
+  });
+
+  const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep.mp3' });
+  await waitFor(async () => emitter.events.some((e) => e.type === 'download:progress'));
+
+  const progress = emitter.events.filter((e) => e.type === 'download:progress');
+  assert.ok(progress.length >= 1);
+  assert.ok(progress.every((p) => p.payload.episodeGuid === 'ep-1'));
+  assert.ok(progress.every((p) => p.payload.progress <= 99));
+  assert.ok(progress.some((p) => p.payload.progress === 99));
 });

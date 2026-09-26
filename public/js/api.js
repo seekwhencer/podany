@@ -92,7 +92,7 @@ export class ApiClient {
 
   async me() {
     const data = await this.requireJson('/api/auth/me', { method: 'GET', headers: this._headers() });
-    return data.user || null;
+    return { user: data.user || null, sessionToken: data.sessionToken || null };
   }
 
   // ── Sync (subscriptions + playback positions) ───────────────────────────

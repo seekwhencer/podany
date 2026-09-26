@@ -4,6 +4,7 @@ import { FeedService } from '../services/feedService.js';
 import { DownloadsService } from '../services/downloadsService.js';
 import { isValidExternalUrl } from '../utils/url.js';
 import { json } from '../utils/response.js';
+import { EVENT_SUBSCRIPTION_ADDED, EVENT_SUBSCRIPTION_REMOVED } from '../live/protocol.js';
 
 function isString(value) {
     return typeof value === 'string' && value.length > 0;
@@ -14,6 +15,16 @@ export class SubscriptionRoutes {
         this.subscriptions = deps.subscriptions ?? new SubscriptionService(deps);
         this.feed = deps.feed ?? new FeedService(deps);
         this.downloads = deps.downloads ?? new DownloadsService(deps);
+        this.liveEmitter = deps.liveEmitter ?? null;
+    }
+
+    _emit(type, payload, userId) {
+        if (!this.liveEmitter || !userId) return;
+        try {
+            this.liveEmitter.emit({ userId, type, payload });
+        } catch (err) {
+            console.error('[server] LiveEmitter failed to deliver subscription event:', err.message);
+        }
     }
 
     async enqueueEpisodesForFeed(userId, feedUrl, subscriptionId, episodes = []) {
@@ -97,6 +108,8 @@ export class SubscriptionRoutes {
                     pubDate
                 });
 
+                this._emit(EVENT_SUBSCRIPTION_ADDED, { id: feed.id, feedUrl, title }, req.user.id);
+
                 void this.enqueueEpisodesForFeed(req.user.id, feedUrl, feed.id, feeds.flatMap((f) => f.episodes ?? []));
 
                 return json(res, 200, feed);
@@ -113,6 +126,7 @@ export class SubscriptionRoutes {
                     return json(res, 400, { error: 'feedUrl is required.' });
                 }
                 const result = await this.subscriptions.removeSubscription(req.user.id, feedUrl);
+                this._emit(EVENT_SUBSCRIPTION_REMOVED, { feedUrl }, req.user.id);
                 return json(res, 200, result);
             } catch (err) {
                 return next(err);

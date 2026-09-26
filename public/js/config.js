@@ -31,6 +31,12 @@ export function artworkUrl(image, size = 'full') {
   return `/images/${image}-${size}.jpg`;
 }
 
+// WebSocket reconnect tuning (client side). Base delay of the exponential
+// backoff when rebuilding a dropped /live connection; capped with jitter.
+export const WS_RECONNECT_BASE_MS = 1000;
+export const WS_RECONNECT_MAX_MS = 30000;
+export const WS_RECONNECT_MAX_FAILURES = 3;
+
 export const DEFAULT_STARTER_FEEDS = [
   'https://changelog.com/podcast/feed',
   'https://feeds.feedburner.com/syntaxfm'

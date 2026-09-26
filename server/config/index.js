@@ -49,6 +49,10 @@ class Config {
     this.sessionCookieName = defaults.sessionCookieName;
     this.sessionTtlSeconds = defaults.sessionTtlSeconds;
 
+    this.websocketPath = env.WEBSOCKET_PATH || defaults.websocketPath;
+    this.websocketHeartbeatIntervalMs = Math.max(1000, toInt(env.WS_HEARTBEAT_INTERVAL_MS, defaults.websocketHeartbeatIntervalMs));
+    this.websocketHeartbeatTimeoutMs = Math.max(this.websocketHeartbeatIntervalMs, toInt(env.WS_HEARTBEAT_TIMEOUT_MS, defaults.websocketHeartbeatTimeoutMs));
+
     this.rateLimitLinksPerHour = Math.max(0, toInt(env.RATE_LIMIT_LINKS_PER_HOUR, defaults.rateLimitLinksPerHour));
     this.corsOrigin = env.CORS_ORIGIN || defaults.corsOrigin;
 

@@ -2,12 +2,23 @@ import { Router } from 'express';
 import { AuthService } from '../services/authService.js';
 import { getSessionToken } from '../middleware/auth.js';
 import { json } from '../utils/response.js';
+import { EVENT_SESSION_CLOSED } from '../live/protocol.js';
 
 export class AuthRoutes {
   constructor(deps = {}) {
     this.config = deps.config;
     this.cookieName = this.config?.sessionCookieName;
     this.auth = deps.auth ?? new AuthService(deps);
+    this.liveEmitter = deps.liveEmitter ?? null;
+  }
+
+  _emit(type, payload, userId) {
+    if (!this.liveEmitter || !userId) return;
+    try {
+      this.liveEmitter.emit({ userId, type, payload });
+    } catch (err) {
+      console.error('[server] LiveEmitter failed to deliver session event:', err.message);
+    }
   }
 
   cookieOptions() {
@@ -72,7 +83,19 @@ export class AuthRoutes {
     router.post('/logout', async (req, res, next) => {
       try {
         const token = getSessionToken(req, this.cookieName);
+        let closedUserId = null;
+        if (token) {
+          try {
+            const user = await this.auth.resolveUser(token);
+            if (user && user.id) closedUserId = user.id;
+          } catch (err) {
+            closedUserId = null;
+          }
+        }
         await this.auth.logout(token);
+        if (closedUserId) {
+          this._emit(EVENT_SESSION_CLOSED, { reason: 'logout' }, closedUserId);
+        }
         this.clearSessionCookie(res);
         return json(res, 200, { success: true });
       } catch (err) {
@@ -90,7 +113,10 @@ export class AuthRoutes {
         if (!user) {
           return json(res, 401, { error: 'Invalid or expired session' });
         }
-        return json(res, 200, { success: true, user });
+        // Echo the resolved token so a cookie-only client (no stored header
+        // token, httpOnly cookie unreadable from JS) can persist it in state and
+        // send it via X-Session-Token on subsequent calls + open the live WS.
+        return json(res, 200, { success: true, user, sessionToken: token });
       } catch (err) {
         return next(err);
       }
