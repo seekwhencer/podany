@@ -65,10 +65,10 @@ export class QueueManager {
 
     const cards = document.querySelectorAll('.episode-card');
     cards.forEach(card => {
-      const guid = card.dataset.guid;
+      const id = card.dataset.id;
       const qBtn = card.querySelector('.btn-queue-ep');
       if (qBtn) {
-        const inQueue = this.isEpisodeQueued(guid);
+        const inQueue = (this.state.queue || []).some(ep => ep && String(ep.id) === id);
         if (inQueue) {
           qBtn.classList.add('is-queued');
           qBtn.innerHTML = this.app.config.cardIcons.QUEUE_ADDED;

@@ -235,7 +235,8 @@ export class LiveClient {
             at: Date.now()
         };
 
-        const card = document.querySelector(`.episode-card[data-guid="${CSS.escape(guid)}"]`);
+        const ep = (this.state.allEpisodes || []).find(e => e && e.guid === guid);
+        const card = ep && ep.id ? document.querySelector(`.episode-card[data-id="${CSS.escape(String(ep.id))}"]`) : null;
         if (!card) return;
         const badge = card.querySelector('.ep-download-badge');
         if (!badge) return;
@@ -262,9 +263,11 @@ export class LiveClient {
             });
         }
 
+        const targetEp = (this.state.allEpisodes || []).find(e => e && e.guid === guid);
+        const targetId = targetEp ? String(targetEp.id) : null;
         const cards = document.querySelectorAll('.episode-card');
         cards.forEach(card => {
-            if (card.dataset.guid !== guid) return;
+            if (targetId == null || card.dataset.id !== targetId) return;
             const img = card.querySelector('.episode-artwork');
             if (img) {
                 img.src = artworkUrl(image, 'thumb');
@@ -289,6 +292,7 @@ export class LiveClient {
     }
 
     _handlePlayback(payload) {
+        return;
         const guid = payload.episodeGuid;
         if (guid && this.state.playbackPositions) {
             const existing = this.state.playbackPositions[guid];

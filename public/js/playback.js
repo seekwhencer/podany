@@ -486,7 +486,7 @@ export class PlaybackManager {
       }
 
       if (this.state.currentEpisode) {
-        const activeCards = document.querySelectorAll(`.episode-card[data-guid="${CSS.escape(this.state.currentEpisode.guid)}"]`);
+        const activeCards = document.querySelectorAll(`.episode-card[data-id="${CSS.escape(this.state.currentEpisode.id)}"]`);
         activeCards.forEach(card => {
           let track = card.querySelector('.ep-progress-track');
           let fill = card.querySelector('.ep-progress-fill');
@@ -555,7 +555,7 @@ export class PlaybackManager {
         if (matchAll) matchAll.duration = formatted;
         const matchFiltered = this.state.filteredEpisodes.find(e => e.guid === this.state.currentEpisode.guid);
         if (matchFiltered) matchFiltered.duration = formatted;
-        const card = document.querySelector(`.episode-card[data-guid="${CSS.escape(this.state.currentEpisode.guid)}"]`);
+        const card = document.querySelector(`.episode-card[data-id="${CSS.escape(this.state.currentEpisode.id)}"]`);
         if (card) {
           const durBadge = card.querySelector('.episode-duration');
           if (durBadge && (!durBadge.textContent || durBadge.textContent === '0:00')) {
@@ -707,10 +707,10 @@ export class PlaybackManager {
 
     const cards = document.querySelectorAll('.episode-card');
     cards.forEach(card => {
-      const guid = card.dataset.guid;
+      const id = card.dataset.id;
       const btn = card.querySelector('.btn-play-ep');
       if (!btn) return;
-      if (this.state.currentEpisode && this.state.currentEpisode.guid === guid) {
+      if (this.state.currentEpisode && String(this.state.currentEpisode.id) === id) {
         card.classList.add('playing');
         if (isLoading) {
           btn.innerHTML = this.config.cardIcons.SPINNER;
