@@ -10,7 +10,7 @@
 import Config from './config.js';
 import AppState from './state.js';
 import Elements from './dom.js';
-import ApiClient from './api.js';
+import { ApiClient, ApiError } from './api.js';
 import Storage from './storage.js';
 import ThemeManager from './ui/theme.js';
 import ModalManager from './ui/modal.js';
@@ -28,7 +28,7 @@ app.config = new Config();
 app.state = new AppState();
 app.elements = new Elements();
 app.api = new ApiClient(app.config, app.state);
-app.storage = new Storage(app.config);
+app.storage = new Storage(app.config, app.api, app.state);
 app.theme = new ThemeManager(app);
 app.modal = new ModalManager(app);
 app.playerUI = new PlayerUI(app);
@@ -42,27 +42,65 @@ app.timeline = new TimelineManager(app);
 
 // ── Boot sequence ───────────────────────────────────────────────────────────
 
-function loadPersistedState() {
-    app.state.playbackPositions = app.storage.loadPositions();
-    app.state.feeds = app.storage.loadFeeds();
+// Boot error handler (Schritt 7): surface server errors instead of a silent
+// empty state. Auth failures (401/403) re-trigger the auth flow; other errors
+// (offline, 5xx, malformed response) are shown in the status banner.
+function handleBootError(err) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        app.state.sessionToken = '';
+        app.storage.saveSessionToken('');
+        app.auth.updateSyncStatusUI('Session Expired', '', false);
+        app.auth.showAuthModal();
+        return;
+    }
+    const detail = (err && err.message) ? err.message : String(err);
+    console.error('Boot: could not load persistent data from server', detail);
+    app.modal.showStatus(`Could not load data from the server (${detail}). Check your connection and try again.`);
+}
 
-    console.log(app.state.feeds);
+// Auth-first async boot. Validates the session with the server first, then
+// loads the persistent data (feeds, positions, downloads), populates the
+// in-memory cache + transient queue, and finally renders the UI. A loading
+// status is shown while the server calls are in flight.
+async function initApp() {
+    app.modal.showStatus('Starte Podany...');
 
+    // 1. Session-/Token-Param aus der URL ziehen (Magic-Link): in den State,
+    //    URL bereinigen. MUSS vor checkAuth laufen.
     app.auth.checkUrlSessionParam();
 
+    // 2. Session vom Server validieren (auth-first). Bei erfolgreichem
+    //    Login/Session werden Feeds + Positionen bereits syncronisiert.
+    await app.auth.checkAuth();
+
+    // 3. Persistente Daten vom Server laden (Feeds/Positionen/Downloads).
+    //    Fehler werden nicht verschluckt: 401/403 -> Auth-Flow, sonst
+    //    Ladefehler an die UI statt eines stillen leeren Zustands (Schritt 7).
+    app.modal.showStatus('Lade Feeds, Positionen und Downloads...');
+    try {
+        app.state.feeds = await app.storage.loadFeeds();
+        app.state.playbackPositions = await app.storage.loadPositions();
+        await app.downloads.loadDownloads();
+    } catch (err) {
+        handleBootError(err);
+        return;
+    }
+
+    // 4. Cache-Arbeitsspeicher befüllen (flüchtig) + Queue (client-only).
     const cache = app.storage.loadCache();
     if (cache.episodes) app.state.allEpisodes = cache.episodes;
     if (cache.metadata) app.state.feedMetadata = cache.metadata;
-
     app.queue.loadQueue();
-    app.downloads.loadDownloads();
 
+    // 5. UI rendern.
     if (app.state.allEpisodes && app.state.allEpisodes.length > 0) {
         app.timeline.processAndSortEpisodes();
         app.timeline.renderTimeline();
         app.timeline.renderContinueShelf();
         app.feeds.renderFeedsGrid();
     }
+
+    app.modal.hideStatus();
 }
 
 function wireAllEvents() {
@@ -104,16 +142,15 @@ function initServiceWorker() {
     }
 }
 
-app.init = function init() {
+app.init = async function init() {
     app.theme.init();
-    loadPersistedState();
+    await initApp();
     wireAllEvents();
     app.playback.setupAudioEngines();
     setupNetworkListeners();
     refreshStaticUI();
     initServiceWorker();
     app.modal.initNavigationRoute();
-    app.auth.checkAuth();
 };
 
 // Wire the YouTube Iframe API callback (loaded as a classic <script> before the

@@ -271,8 +271,23 @@ export class ModalManager {
 
   // ── Global reset (settings: clear all storage) ──────────────────────────
 
-  resetAll() {
-    try { localStorage.clear(); } catch (e) {}
+  async resetAll() {
+    const feedUrls = [...this.state.feeds];
+    const positionGuids = Object.keys(this.state.playbackPositions);
+    const downloadGuids = Object.keys(this.state.downloadedEpisodes);
+
+    // Persisted data lives on the server; delete it there instead of clearing
+    // browser storage. A pure client-state reset would leave server rows behind.
+    for (const url of feedUrls) {
+      try { await this.app.api.removeSubscription(url); } catch (e) {}
+    }
+    for (const guid of positionGuids) {
+      try { await this.app.api.removePosition(guid); } catch (e) {}
+    }
+    for (const guid of downloadGuids) {
+      try { await this.app.api.removeDownload(guid); } catch (e) {}
+    }
+
     if ('caches' in window) {
       caches.delete('podany-audio-v1').catch(() => {});
     }

@@ -449,7 +449,7 @@ export class PlaybackManager {
     }
     document.body.classList.add('has-active-episode');
 
-    const shouldCollapse = localStorage.getItem('podany_player_collapsed') === 'true';
+    const shouldCollapse = this.state.playerCollapsed === true;
     this.setPlayerCollapsed(shouldCollapse, false);
 
     this.syncPlaybackButtons();
@@ -763,9 +763,7 @@ export class PlaybackManager {
       if (this.elements.miniToggle) this.elements.miniToggle.setAttribute('aria-expanded', 'true');
     }
     if (save) {
-      try {
-        localStorage.setItem('podany_player_collapsed', collapsed ? 'true' : 'false');
-      } catch (e) {}
+      this.state.playerCollapsed = collapsed;
     }
   }
 

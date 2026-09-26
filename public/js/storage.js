@@ -1,167 +1,157 @@
-// storage.js — Podany Storage wrapper
-// Thin persistence layer over localStorage. Pure read/write helpers; no UI
-// side effects. Managers call these and then refresh their own views.
+// storage.js — Podany Storage (API adapter)
+// Thin adapter over ApiClient. Persistent data (feeds, playback positions,
+// downloads, session token) is read/written via the server API; client-only
+// preferences (theme, queue) and the episode/metadata cache live in memory
+// (AppState). No localStorage / sessionStorage access remains.
 
 export class Storage {
-    constructor(config) {
+    constructor(config, api, state) {
         this.config = config;
+        this.api = api;
+        this.state = state;
+        this._registeredGuids = new Set();
     }
 
-    _keys() {
-        return this.config.storageKeys;
-    }
+    // ── Session token (server cookie + header; client mirrors it in state) ──
+    // Synchronous: the token already lives in AppState and is not persisted in
+    // the browser (Schritt 4). ApiClient sends it via X-Session-Token and the
+    // session cookie is carried automatically with credentials: 'include'.
 
-    _legacy(key) {
-        return this.config.legacyKey(key);
-    }
-
-    get(key) {
-        try {
-            const val = localStorage.getItem(this._keys()[key]);
-            if (val !== null) return val;
-        } catch (e) { }
-        try {
-            const legacy = this._legacy(key);
-            if (legacy) {
-                const val = localStorage.getItem(legacy);
-                if (val !== null) return val;
-            }
-        } catch (e) { }
-        return null;
-    }
-
-    set(key, value) {
-        try {
-            localStorage.setItem(this._keys()[key], value);
-        } catch (e) { }
-    }
-
-    remove(key) {
-        try { localStorage.removeItem(this._keys()[key]); } catch (e) { }
-        const legacy = this._legacy(key);
-        if (legacy) {
-            try { localStorage.removeItem(legacy); } catch (e) { }
-        }
-    }
-
-    // Session token
     loadSessionToken() {
-        return this.get('SESSION') || '';
+        return (this.state && this.state.sessionToken) || '';
     }
 
     saveSessionToken(token) {
-        if (token) this.set('SESSION', token);
-        else this.remove('SESSION');
-    }
-
-    // Feeds
-    loadFeeds() {
-        const saved = this.get('FEEDS');
-        if (saved) {
-            try { return JSON.parse(saved); } catch (e) { }
+        if (this.state) {
+            this.state.sessionToken = token ? String(token) : '';
         }
-        return [];
     }
 
-    saveFeeds(feeds) {
-        this.set('FEEDS', JSON.stringify(feeds));
+    // ── Feeds (server: subscriptions) ───────────────────────────────────────
+
+    async loadFeeds() {
+        const res = await this.api.listSubscriptions();
+        const feeds = Array.isArray(res.feeds) ? res.feeds : [];
+        return feeds.map(f => (typeof f === 'string' ? f : f.feed_url)).filter(Boolean);
     }
 
-    // Playback positions
-    loadPositions() {
-        const saved = this.get('POSITIONS');
-        if (saved) {
-            try { return JSON.parse(saved); } catch (e) { }
-        }
-        return {};
+    // Feed add/remove are persisted to the server by SyncManager
+    // (saveFeedToServer / removeFeedFromServer). No bulk "replace subscriptions"
+    // endpoint exists, so this stays a no-op that preserves the abstraction and
+    // avoids double server writes.
+    async saveFeeds(feeds) {
+        return Array.isArray(feeds) ? feeds : [];
     }
 
-    savePositions(positions) {
-        this.set('POSITIONS', JSON.stringify(positions));
+    // ── Playback positions (server: playback_state, per episode) ────────────
+
+    async loadPositions() {
+        return await this.api.listPositions() || {};
     }
 
-    // Cached episodes + feed metadata
+    // Individual positions are written to the server via ApiClient.savePosition
+    // (SyncManager, wired through timeupdate / completion handlers). There is
+    // no bulk positions endpoint, so persisting the whole map here would double
+    // up with those per-episode writes.
+    async savePositions(positions) {
+        return positions && typeof positions === 'object' ? positions : {};
+    }
+
+    // ── Downloads (server: downloads) ───────────────────────────────────────
+
+    async loadDownloads() {
+        const items = await this.api.listDownloads();
+        this._registeredGuids.clear();
+        const map = {};
+        items.forEach(d => {
+            const guid = d.episode_guid;
+            if (!guid) return;
+            this._registeredGuids.add(guid);
+            map[guid] = {
+                guid,
+                feedUrl: null,
+                audioUrl: d.audio_url || '',
+                title: d.title || '',
+                podcastTitle: '',
+                artwork: d.artwork || d.image || null,
+                duration: '',
+                timestamp: d.received_at || d.created_at || '',
+                size: d.file_size || 0,
+                downloadedAt: d.created_at || Date.now()
+            };
+        });
+        if (this.state) this.state.downloadedEpisodes = map;
+        return map;
+    }
+
+    async saveDownloads(downloads) {
+        const map = downloads && typeof downloads === 'object' ? downloads : {};
+        Object.values(map).forEach(ep => {
+            if (!ep || !ep.guid || this._registeredGuids.has(ep.guid)) return;
+            this._registeredGuids.add(ep.guid);
+            this.api.registerDownload({
+                episodeGuid: ep.guid,
+                title: ep.title || '',
+                audioUrl: ep.audioUrl || ''
+            }).catch(() => {});
+        });
+        if (this.state) this.state.downloadedEpisodes = map;
+    }
+
+    // ── Episode + feed metadata cache (client memory only) ──────────────────
+    // Synchronous: held in AppState, never persisted (Schritt 6).
+
     loadCache() {
-        const eps = this.get('CACHED_EPISODES');
-        const meta = this.get('CACHED_METADATA');
+        const s = this.state || {};
         return {
-            episodes: eps ? safeParse(eps) : null,
-            metadata: meta ? safeParse(meta) : null
+            episodes: Array.isArray(s.allEpisodes) && s.allEpisodes.length > 0 ? s.allEpisodes : null,
+            metadata: s.feedMetadata && typeof s.feedMetadata === 'object' ? s.feedMetadata : null
         };
     }
 
-    saveCache(episodes, metadata, maxEpisodes = 2000) {
-        if (episodes && episodes.length > 0) {
-            this.set('CACHED_EPISODES', JSON.stringify(episodes.slice(0, maxEpisodes)));
-        }
-        if (metadata) {
-            this.set('CACHED_METADATA', JSON.stringify(metadata));
-        }
+    saveCache(episodes, metadata) {
+        const s = this.state;
+        if (!s) return;
+        if (Array.isArray(episodes)) s.allEpisodes = episodes;
+        if (metadata && typeof metadata === 'object') s.feedMetadata = metadata;
     }
 
-    // Queue (minimal serialization)
+    // ── Queue (client-only, transient memory) ───────────────────────────────
+    // Synchronous: in-memory "Up Next" list, not persisted (Schritt 0).
+
     loadQueue() {
-        const stored = this.get('QUEUE');
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch (e) { }
-        }
-        return [];
-    }
-
-    minimalQueueItem(ep) {
-        return {
-            guid: ep.guid,
-            title: ep.title,
-            podcastTitle: ep.podcastTitle,
-            audioUrl: ep.audioUrl,
-            artwork: ep.artwork,
-            duration: ep.duration,
-            isYouTube: !!ep.isYouTube,
-            videoId: ep.videoId,
-            playlistId: ep.playlistId,
-            feedUrl: ep.feedUrl,
-            timestamp: ep.timestamp
-        };
+        return Array.isArray(this.state ? this.state.queue : null) ? this.state.queue : [];
     }
 
     saveQueue(queue) {
-        const minimal = (Array.isArray(queue) ? queue : []).map(ep => this.minimalQueueItem(ep));
-        this.set('QUEUE', JSON.stringify(minimal));
-    }
-
-    // Downloads metadata
-    loadDownloads() {
-        const stored = this.get('DOWNLOADS');
-        if (stored) {
-            try { return JSON.parse(stored); } catch (e) { }
+        if (this.state) {
+            this.state.queue = Array.isArray(queue) ? queue : [];
         }
-        return {};
     }
 
-    saveDownloads(downloads) {
-        this.set('DOWNLOADS', JSON.stringify(downloads));
-    }
+    // ── Theme (client-only, transient memory) ───────────────────────────────
+    // Synchronous: single non-persisting preference (Schritt 0).
 
-    // Theme
     loadTheme() {
-        return this.get('THEME') || 'system';
+        return (this.state && this.state.theme) || 'system';
     }
 
     saveTheme(theme) {
-        this.set('THEME', theme);
+        if (this.state) {
+            this.state.theme = theme;
+        }
     }
 
-    clearAll() {
-        Object.keys(this._keys()).forEach(key => this.remove(key));
-        try { localStorage.clear(); } catch (e) { }
-    }
-}
+    // ── Reset (client-only transient state) ─────────────────────────────────
+    // Server-side logout / destructive wipe is handled by callers (api.logout,
+    // cookie clearing). This clears only the in-memory preferences.
 
-function safeParse(str) {
-    try { return JSON.parse(str); } catch (e) { return null; }
+    async clearAll() {
+        if (this.state) {
+            this.state.queue = [];
+            this.state.theme = 'system';
+        }
+    }
 }
 
 export default Storage;

@@ -41,6 +41,19 @@ export class PlaybackRoutes {
       }
     });
 
+    router.delete('/positions', async (req, res, next) => {
+      try {
+        const { episodeGuid } = req.body ?? {};
+        if (!isString(episodeGuid)) {
+          return json(res, 400, { error: 'episodeGuid is required.' });
+        }
+        const result = await this.playback.removePosition(req.user.id, episodeGuid);
+        return json(res, 200, result);
+      } catch (err) {
+        return next(err);
+      }
+    });
+
     return router;
   }
 }

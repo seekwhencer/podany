@@ -25,6 +25,7 @@ export class AppState {
     this.activeFeedDetailUrl = null;
     this.navHistory = [];          // stack of { tab, feedUrl } entries for back navigation
     this.continueCollapsed = true;
+    this.playerCollapsed = false;
     this.queue = [];
     this.downloadedEpisodes = {};
     this.downloadingGuids = new Set();
@@ -56,6 +57,7 @@ export class AppState {
     this.downloadingGuids.clear();
     this.activeFeedDetailUrl = null;
     this.navHistory = [];
+    this.playerCollapsed = false;
     this.sleepTimer = {
       active: false,
       minutes: 0,

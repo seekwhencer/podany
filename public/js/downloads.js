@@ -1,5 +1,6 @@
 // downloads.js — Podany DownloadsManager
-// Offline audio caching via the Cache API + metadata in localStorage.
+// Offline audio caching via the Cache API; episode/feed metadata lives in the
+// in-memory AppState cache (state.allEpisodes / state.feedMetadata).
 // Downloads fall back to the server audio-proxy on CORS failures.
 
 import { escapeHtml, formatBytes } from './utils.js';
@@ -15,8 +16,8 @@ export class DownloadsManager {
     this.api = app.api;
   }
 
-  loadDownloads() {
-    this.state.downloadedEpisodes = this.storage.loadDownloads();
+  async loadDownloads() {
+    this.state.downloadedEpisodes = await this.storage.loadDownloads();
   }
 
   saveDownloads() {

@@ -134,6 +134,54 @@ export class ApiClient {
     return res.ok;
   }
 
+  async removePosition(episodeGuid) {
+    const res = await this.request('/api/playback/positions', {
+      method: 'DELETE',
+      headers: this._headers(),
+      body: { episodeGuid }
+    });
+    return res.ok;
+  }
+
+  // ── Downloads ───────────────────────────────────────────────────────────
+
+  async listDownloads() {
+    const data = await this.requireJson('/api/downloads', { method: 'GET', headers: this._headers() });
+    return Array.isArray(data.downloads) ? data.downloads : [];
+  }
+
+  async registerDownload({ episodeGuid, title = '', audioUrl = '' }) {
+    const res = await this.request('/api/downloads', {
+      method: 'POST',
+      headers: this._headers(),
+      body: { episodeGuid, title, audioUrl }
+    });
+    return res.ok;
+  }
+
+  async removeDownload(episodeGuid) {
+    const res = await this.request('/api/downloads', {
+      method: 'DELETE',
+      headers: this._headers(),
+      body: { episodeGuid }
+    });
+    return res.ok;
+  }
+
+  // ── Full boot load (multiple GETs, no server endpoint required) ──────────
+
+  // Bundles the persistent reads for the async boot into one call site so the
+  // start does not hang on many small awaits. Throws ApiError on auth failures
+  // (401/403) so the boot can surface the auth modal.
+  async loadAll() {
+    const [feeds, positions, downloads] = await Promise.all([
+      this.listSubscriptions(),
+      this.listPositions(),
+      this.listDownloads()
+    ]);
+    return { feeds, positions, downloads };
+  }
+
   // ── Feed fetching ───────────────────────────────────────────────────────
 
   async fetchFeed(url) {

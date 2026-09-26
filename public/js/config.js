@@ -13,13 +13,6 @@ export const STORAGE_KEYS = {
   DOWNLOADS: 'podany_downloads'
 };
 
-// Legacy token names kept for migration from earlier builds.
-const LEGACY_KEYS = {
-  SESSION: 'podcast_pulse_session_token',
-  FEEDS: 'podcast_pulse_feeds',
-  DOWNLOADS: 'podcast_pulse_downloads'
-};
-
 export const CARD_ICONS = {
   PLAY: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>',
   PAUSE: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>',
@@ -64,10 +57,6 @@ export class Config {
 
   get storageKeys() {
     return STORAGE_KEYS;
-  }
-
-  legacyKey(key) {
-    return LEGACY_KEYS[key] || null;
   }
 }
 

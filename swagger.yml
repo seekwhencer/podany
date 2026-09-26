@@ -328,6 +328,24 @@ paths:
           description: Saved playback position
         '400':
           $ref: '#/components/responses/Error'
+    delete:
+      tags:
+        - Playback
+      summary: Remove a saved playback position for an episode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                episodeGuid:
+                  type: string
+      responses:
+        '200':
+          description: Playback position removed
+        '400':
+          $ref: '#/components/responses/Error'
   /user/options:
     get:
       tags:

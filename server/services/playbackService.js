@@ -29,6 +29,11 @@ export class PlaybackService {
     });
     return { success: true, episodeGuid, positionSeconds: typeof positionSeconds === 'number' ? positionSeconds : 0 };
   }
+
+  async removePosition(userId, episodeGuid) {
+    await this.playback.remove(userId, episodeGuid);
+    return { success: true, episodeGuid };
+  }
 }
 
 export default PlaybackService;
