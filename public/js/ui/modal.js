@@ -53,9 +53,6 @@ export class ModalManager {
       } else if (targetTab === 'timeline') {
         if (this.elements.searchInput) this.elements.searchInput.placeholder = 'Search loaded episodes...';
         this.app.timeline.renderTimeline();
-      } else if (targetTab === 'downloads') {
-        if (this.elements.searchInput) this.elements.searchInput.placeholder = 'Search downloaded episodes...';
-        this.app.downloads.updateDownloadedCountUI();
       }
     }
     this.app.feeds.updateDockVisibility();
@@ -274,7 +271,6 @@ export class ModalManager {
   async resetAll() {
     const feedUrls = [...this.state.feeds];
     const positionGuids = Object.keys(this.state.playbackPositions);
-    const downloadGuids = Object.keys(this.state.downloadedEpisodes);
 
     // Persisted data lives on the server; delete it there instead of clearing
     // browser storage. A pure client-state reset would leave server rows behind.
@@ -284,13 +280,7 @@ export class ModalManager {
     for (const guid of positionGuids) {
       try { await this.app.api.removePosition(guid); } catch (e) {}
     }
-    for (const guid of downloadGuids) {
-      try { await this.app.api.removeDownload(guid); } catch (e) {}
-    }
 
-    if ('caches' in window) {
-      caches.delete('podany-audio-v1').catch(() => {});
-    }
     this.state.reset();
     this.state.pageSize = this.app.config.pageSize;
     document.body.classList.remove('has-active-episode', 'has-mini-player', 'has-full-player');
@@ -304,7 +294,6 @@ export class ModalManager {
     this.app.playback.syncPlaybackButtons();
     this.app.feeds.updateFeedCountUI();
     this.app.queue.updateQueueUI();
-    this.app.downloads.updateDownloadedCountUI();
     this.app.timeline.renderContinueShelf();
     this.app.timeline.renderTimeline();
     this.app.feeds.renderFeedsGrid();

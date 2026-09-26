@@ -8,6 +8,7 @@ export class AppState {
     this.userEmail = '';
     this.feeds = [];
     this.feedMetadata = {};
+    this.feedIdByUrl = {};
     this.allEpisodes = [];
     this.filteredEpisodes = [];
     this.playbackPositions = {};
@@ -27,8 +28,6 @@ export class AppState {
     this.continueCollapsed = true;
     this.playerCollapsed = false;
     this.queue = [];
-    this.downloadedEpisodes = {};
-    this.downloadingGuids = new Set();
     this.feedToDelete = null;
     this.pendingYouTubePlay = null;
     this.pendingStartTime = null;
@@ -47,14 +46,13 @@ export class AppState {
     this.userEmail = '';
     this.feeds = [];
     this.feedMetadata = {};
+    this.feedIdByUrl = {};
     this.allEpisodes = [];
     this.filteredEpisodes = [];
     this.playbackPositions = {};
     this.currentEpisode = null;
     this.playbackStatus = 'idle';
     this.queue = [];
-    this.downloadedEpisodes = {};
-    this.downloadingGuids.clear();
     this.activeFeedDetailUrl = null;
     this.navHistory = [];
     this.playerCollapsed = false;

@@ -12,12 +12,7 @@ export function splitStatements(sql) {
   const stripped = lines
     .map(line => {
       const dashIndex = line.indexOf('--');
-      if (dashIndex !== -1) {
-        const before = line.slice(0, dashIndex);
-        const after = line.slice(dashIndex + 2);
-        return before + (after.startsWith(' ') ? after : ' ' + after);
-      }
-      return line;
+      return dashIndex !== -1 ? line.slice(0, dashIndex) : line;
     })
     .join('\n');
 

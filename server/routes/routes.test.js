@@ -82,6 +82,38 @@ const fakeDownloads = {
   async deleteById(id) { return { success: true, id } }
 };
 
+const PAYLOAD = Buffer.from('episode-audio-bytes-0123456789');
+
+const fakeServingDownloads = {
+  async getForPlayback(userId, id) {
+    if (userId === 'usr_1' && id === 'ep_ok') return { id: 'dl_x', filename: 'dl_x.mp3', status: 'completed' };
+    return null;
+  },
+  serve(record, req, res) {
+    const total = PAYLOAD.length;
+    const range = req.headers.range;
+    if (range && /^bytes=/.test(range)) {
+      const [startStr, endStr] = range.slice(6).split('-');
+      let start = Number.parseInt(startStr, 10);
+      let end = endStr == null ? total - 1 : Number.parseInt(endStr, 10);
+      if (!Number.isFinite(start)) start = 0;
+      if (!Number.isFinite(end) || end >= total) end = total - 1;
+      res.status(206);
+      res.set('Content-Type', 'audio/mpeg');
+      res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.set('Accept-Ranges', 'bytes');
+      res.set('Content-Length', end - start + 1);
+      res.end(PAYLOAD.subarray(start, end + 1));
+      return;
+    }
+    res.status(200);
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Accept-Ranges', 'bytes');
+    res.set('Content-Length', total);
+    res.end(PAYLOAD);
+  }
+};
+
 const fakeUser = {
   colors: {},
   async getOptions(userId) { return { color: this.colors[userId] ?? '#d8cdbe' }; },
@@ -301,6 +333,75 @@ test('feed fetch rejects an empty url list', async (t) => {
   assert.equal(res.status, 400);
 });
 
+test('feed get by id requires authentication (401 without token)', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed } });
+  t.after(() => server.close());
+  const res = await request(server, 'GET', '/api/feed/sub_1');
+  assert.equal(res.status, 401);
+});
+
+test('feed get by id returns feed and episodes for the owner', async (t) => {
+  const subscriptions = {
+    async findOne(sql, params) {
+      const [feedId, userId] = params;
+      if (feedId === 'sub_ok' && userId === 'usr_1') {
+        return { id: 'sub_ok', feed_url: 'https://example.com/rss', title: 'Feed A', artwork: null, image: null, description: 'desc', category: 'News', language: 'en', pubDate: '2020-01-01', created_at: 1, episodes_count: 1 };
+      }
+      return null;
+    }
+  };
+  const downloads = {
+    async find(sql, params) {
+      const [feedId, userId] = params;
+      if (feedId === 'sub_ok' && userId === 'usr_1') {
+        return [
+          { guid: 'ep-1', title: 'One', timestamp: 200, pubDate: '2020-01-02', duration: '10:00', artwork: null, description: 'd', content: '<p>1</p>', isYouTube: 0, audioUrl: 'https://cdn.example.com/1.mp3', podcastTitle: 'Feed A', feedUrl: 'https://example.com/rss' }
+        ];
+      }
+      return [];
+    }
+  };
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, subscriptions, downloads });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'GET', '/api/feed/sub_ok', { headers: { 'x-session-token': 't' } });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.feed.id, 'sub_ok');
+  assert.equal(res.body.feed.feed_url, 'https://example.com/rss');
+  assert.equal(res.body.feed.title, 'Feed A');
+  assert.equal(res.body.feed.category, 'News');
+  assert.equal(res.body.feed.episodesCount, 1);
+  assert.equal(res.body.episodes.length, 1);
+  assert.equal(res.body.episodes[0].guid, 'ep-1');
+  assert.equal(res.body.episodes[0].podcastTitle, 'Feed A');
+  assert.equal(res.body.episodes[0].feedUrl, 'https://example.com/rss');
+  assert.equal(res.body.episodes[0].audioUrl, 'https://cdn.example.com/1.mp3');
+  assert.equal(res.body.episodes[0].isYouTube, 0);
+});
+
+test('feed get by id returns empty for an unknown or foreign subscription', async (t) => {
+  const subscriptions = {
+    async findOne(sql, params) {
+      const [feedId, userId] = params;
+      if (feedId === 'sub_ok' && userId === 'usr_2') {
+        return { id: 'sub_ok', feed_url: 'https://example.com/rss', title: 'Feed A', episodes_count: 0 };
+      }
+      return null;
+    }
+  };
+  const downloads = {
+    async find(sql, params) { return []; }
+  };
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, subscriptions, downloads });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'GET', '/api/feed/sub_ok', { headers: { 'x-session-token': 't' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { feed: null, episodes: [] });
+});
+
 test('audio-proxy streams a ranged 206 response with forwarded headers and CORS', async (t) => {
   const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, audioProxy: fakeAudioProxy, downloads: fakeDownloads } });
   t.after(() => server.close());
@@ -362,6 +463,54 @@ test('downloads delete by id succeeds for the owner', async (t) => {
   const res = await request(server, 'DELETE', '/api/downloads/dl_1', { headers: { 'x-session-token': 't' } });
   assert.equal(res.status, 200);
   assert.deepEqual(res.body, { success: true, id: 'dl_1' });
+});
+
+test('downloads serve requires authentication (401 without token)', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, downloads: fakeDownloads } });
+  t.after(() => server.close());
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/api/downloads/serve/ep_1`);
+  assert.equal(res.status, 401);
+});
+
+test('downloads serve returns 404 when no id is provided', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, downloads: fakeServingDownloads } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/api/downloads/serve`, { headers: { 'x-session-token': 't' } });
+  assert.equal(res.status, 404);
+});
+
+test('downloads serve returns 404 when the episode is not available for the user', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, downloads: fakeServingDownloads } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/api/downloads/serve/ep_missing`, { headers: { 'x-session-token': 't' } });
+  assert.equal(res.status, 404);
+});
+
+test('downloads serve streams a full 200 response for a completed episode', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, downloads: fakeServingDownloads } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/api/downloads/serve/ep_ok`, { headers: { 'x-session-token': 't' } });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'audio/mpeg');
+  assert.equal(res.headers.get('accept-ranges'), 'bytes');
+  assert.equal(res.headers.get('content-length'), String(PAYLOAD.length));
+  assert.equal(Buffer.from(await res.arrayBuffer()).toString(), PAYLOAD.toString());
+});
+
+test('downloads serve streams a ranged 206 partial response', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, downloads: fakeServingDownloads } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/api/downloads/serve/ep_ok`, {
+    headers: { 'x-session-token': 't', range: 'bytes=3-6' }
+  });
+  assert.equal(res.status, 206);
+  assert.equal(res.headers.get('content-range'), `bytes 3-6/${PAYLOAD.length}`);
+  assert.equal(res.headers.get('content-length'), '4');
+  assert.equal(Buffer.from(await res.arrayBuffer()).toString(), PAYLOAD.slice(3, 7).toString());
 });
 
 test('user options require authentication (401 without token)', async (t) => {

@@ -3,7 +3,7 @@
 // queue modal (drag + touch).
 
 import { escapeHtml } from './utils.js';
-import { FALLBACK_ARTWORK } from './config.js';
+import { FALLBACK_ARTWORK, artworkUrl } from './config.js';
 
 export class QueueManager {
   constructor(app) {
@@ -95,7 +95,7 @@ export class QueueManager {
         <div class="queue-now-playing-card">
           <div class="queue-now-playing-label">Now Playing</div>
           <div class="queue-now-playing-row">
-            <img class="queue-item-artwork" src="${cur.artwork || FALLBACK_ARTWORK}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
+            <img class="queue-item-artwork" src="${artworkUrl(cur.image, 'thumb')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
             <div class="queue-item-info">
               <div class="queue-item-title">${escapeHtml(cur.title)}</div>
               <div class="queue-item-meta">${cur.isYouTube ? 'YouTube' : escapeHtml(cur.podcastTitle)}</div>
@@ -134,7 +134,7 @@ export class QueueManager {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
         </span>
         <span class="queue-item-index">${idx + 1}</span>
-        <img class="queue-item-artwork" src="${ep.artwork || FALLBACK_ARTWORK}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
+        <img class="queue-item-artwork" src="${artworkUrl(ep.image, 'thumb')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
         <div class="queue-item-info">
           <div class="queue-item-title">${escapeHtml(ep.title)}</div>
           <div class="queue-item-meta">${escapeHtml(ep.podcastTitle)}${ep.duration ? ` • ${escapeHtml(ep.duration)}` : ''}</div>

@@ -42,13 +42,13 @@
   }
 
   &.playing {
-    border-color: var(--accent-orange);
+    border-color: var(--color-primary);
     background: var(--bg-card-hover);
-    box-shadow: 0 0 0 1px var(--accent-orange), 0 4px 20px rgba(249, 115, 22, 0.28);
+    box-shadow: 0 0 0 1px var(--color-primary), 0 4px 20px rgba(249, 115, 22, 0.28);
 
     .btn-play-ep {
-      background: var(--accent-orange);
-      border-color: var(--accent-orange);
+      background: var(--color-primary);
+      border-color: var(--color-primary);
       color: #fff;
     }
   }
@@ -121,7 +121,7 @@
     overflow: hidden;
 
     .episode-desc-link {
-      color: var(--accent-orange);
+      color: var(--color-primary);
       cursor: pointer;
       font-size: var(--fs-sm);
       font-weight: 500;
@@ -156,7 +156,7 @@
       min-width: 0;
 
       .ep-resume-time {
-        color: var(--accent-orange);
+        color: var(--color-primary);
         font-weight: 600;
         cursor: pointer;
         transition: opacity 0.2s ease, text-decoration 0.2s ease;
@@ -299,8 +299,8 @@
 
   &.is-queued {
     background: rgba(224, 90, 43, 0.15);
-    color: var(--accent-orange);
-    border-color: var(--accent-orange);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
   }
 }
 

@@ -9,8 +9,7 @@ export const STORAGE_KEYS = {
   CACHED_METADATA: 'podany_cached_metadata',
   POSITIONS: 'podany_playback_positions',
   THEME: 'podany_theme',
-  QUEUE: 'podany_playback_queue',
-  DOWNLOADS: 'podany_downloads'
+  QUEUE: 'podany_playback_queue'
 };
 
 export const CARD_ICONS = {
@@ -20,13 +19,17 @@ export const CARD_ICONS = {
   CHECK: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="16 9 11 14 8 11"></polyline></svg>',
   CHECK_FILLED: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
   QUEUE: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"></path><path d="M18 15v6M15 18h6"></path></svg>',
-  QUEUE_ADDED: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"></path><polyline points="15 18 18 21 23 15"></polyline></svg>',
-  DOWNLOAD: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
-  DOWNLOADED: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 1 1 1v10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 13.586V3a1 1 0 0 1 1-1zM4 20a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1z"/></svg>',
-  DOWNLOAD_SPINNER: '<svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" stroke-opacity="0.25"></circle><path d="M12 3a9 9 0 0 1 9 9" stroke-linecap="round"></path></svg>'
+  QUEUE_ADDED: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"></path><polyline points="15 18 18 21 23 15"></polyline></svg>'
 };
 
 export const FALLBACK_ARTWORK = 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22100%22%20height=%22100%22%3E%3Crect%20width=%22100%25%22%20height=%22100%25%22%20fill=%22%2318181b%22/%3E%3C/svg%3E';
+
+// Leitet den gehaschten Bildnamen (episode.image / feed image) auf die
+// serverseitige Image-Route ab. Liefert FALLBACK_ARTWORK, wenn kein Hash vorliegt.
+export function artworkUrl(image, size = 'full') {
+  if (!image) return FALLBACK_ARTWORK;
+  return `/images/${image}-${size}.jpg`;
+}
 
 export const DEFAULT_STARTER_FEEDS = [
   'https://changelog.com/podcast/feed',
@@ -35,8 +38,6 @@ export const DEFAULT_STARTER_FEEDS = [
 
 export const DIR_PAGE_SIZE = 12;
 
-// Cache API name used for offline audio (kept in sync with sw.js).
-export const AUDIO_CACHE_NAME = 'podany-audio-v1';
 export const APP_CACHE_NAME = 'podany-v2';
 
 // Session cookie name must match the backend default (server/config/defaults.js).

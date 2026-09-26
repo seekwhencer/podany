@@ -74,6 +74,35 @@ test('fetchFeed falls back to oembed for a youtube playlist with no entries', as
   assert.equal(feed.title, 'My Playlist');
 });
 
+test('getFeedById maps persisted YouTube playlist metadata (playlistId + isYouTubePlaylist)', async () => {
+  const subs = {
+    findOne: async () => ({
+      id: 'sub_1', feed_url: 'https://www.youtube.com/playlist?list=XYZ', title: 'YT Playlist',
+      artwork: '', image: '', description: '', category: '', language: '', pubDate: '', created_at: 1, episodes_count: 2
+    })
+  };
+  const dl = {
+    find: async () => [
+      { guid: 'ep-1', title: 'Playlist Ep', isYouTube: 1, playlistId: 'XYZ', isYouTubePlaylist: 1, audioUrl: 'https://www.youtube.com/playlist?list=XYZ', podcastTitle: 'YT Playlist', feedUrl: 'https://www.youtube.com/playlist?list=XYZ' },
+      { guid: 'ep-2', title: 'Plain Ep', isYouTube: 0, playlistId: null, isYouTubePlaylist: 0, audioUrl: 'https://cdn.example.com/ep.mp3', podcastTitle: 'Plain', feedUrl: 'https://cdn.example.com/feed.xml' }
+    ]
+  };
+  const service = new FeedService({ subscriptions: subs, downloads: dl });
+  const result = await service.getFeedById('user_1', 'sub_1');
+  assert.equal(result.feed.id, 'sub_1');
+  assert.equal(result.episodes.length, 2);
+  assert.equal(result.episodes[0].playlistId, 'XYZ');
+  assert.equal(result.episodes[0].isYouTubePlaylist, 1);
+  assert.equal(result.episodes[1].playlistId, null);
+  assert.equal(result.episodes[1].isYouTubePlaylist, 0);
+});
+
+test('getFeedById returns empty shape for unknown subscription', async () => {
+  const service = new FeedService({ subscriptions: { findOne: async () => null }, downloads: { find: async () => [] } });
+  const result = await service.getFeedById('user_1', 'missing');
+  assert.deepEqual(result, { feed: null, episodes: [] });
+});
+
 test('fetchFeeds filters invalid urls and drops failures', async () => {
   const calls = [];
   const fetchImpl = makeFetch((url) => {

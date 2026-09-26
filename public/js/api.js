@@ -108,7 +108,8 @@ export class ApiClient {
       headers: this._headers(),
       body: { feedUrl, title, image }
     });
-    return res.ok;
+    if (!res.ok) return null;
+    return res.json().catch(() => null);
   }
 
   async removeSubscription(feedUrl) {
@@ -143,46 +144,41 @@ export class ApiClient {
     return res.ok;
   }
 
-  // ── Downloads ───────────────────────────────────────────────────────────
-
-  async listDownloads() {
-    const data = await this.requireJson('/api/downloads', { method: 'GET', headers: this._headers() });
-    return Array.isArray(data.downloads) ? data.downloads : [];
-  }
-
-  async registerDownload({ episodeGuid, title = '', audioUrl = '' }) {
-    const res = await this.request('/api/downloads', {
-      method: 'POST',
-      headers: this._headers(),
-      body: { episodeGuid, title, audioUrl }
-    });
-    return res.ok;
-  }
-
-  async removeDownload(episodeGuid) {
-    const res = await this.request('/api/downloads', {
-      method: 'DELETE',
-      headers: this._headers(),
-      body: { episodeGuid }
-    });
-    return res.ok;
-  }
-
   // ── Full boot load (multiple GETs, no server endpoint required) ──────────
 
   // Bundles the persistent reads for the async boot into one call site so the
   // start does not hang on many small awaits. Throws ApiError on auth failures
   // (401/403) so the boot can surface the auth modal.
   async loadAll() {
-    const [feeds, positions, downloads] = await Promise.all([
+    const [feeds, positions] = await Promise.all([
       this.listSubscriptions(),
-      this.listPositions(),
-      this.listDownloads()
+      this.listPositions()
     ]);
-    return { feeds, positions, downloads };
+    return { feeds, positions };
   }
 
-  // ── Feed fetching ───────────────────────────────────────────────────────
+  // ── Feed reading (DB-ID based) ──────────────────────────────────────────
+
+  // Reads an already-subscribed feed by its DB subscription id (`sub_...`).
+  // Returns `{ feed, episodes }` with no network fetch/parse of the source.
+  async loadFeedById(feedId) {
+    if (!feedId) return { feed: null, episodes: [] };
+    const res = await this.request(`/api/feed/${encodeURIComponent(feedId)}`, {
+      method: 'GET',
+      headers: this._headers()
+    });
+    if (!res.ok) return { feed: null, episodes: [] };
+    const data = await res.json().catch(() => ({}));
+    return {
+      feed: data.feed || null,
+      episodes: Array.isArray(data.episodes) ? data.episodes : []
+    };
+  }
+
+  // ── Feed fetching (URL based, preview-only) ──────────────────────────────
+  // The only remaining URL-based fetch. Used exclusively to preview episodes of
+  // a feed the user has NOT subscribed to yet (FeedsManager preview path).
+  // Subscribed feeds are always read by DB id via loadFeedById().
 
   async fetchFeed(url) {
     const res = await this.request('/api/feed/fetch', {
@@ -197,27 +193,6 @@ export class ApiClient {
     return feeds.length > 0 ? feeds[0] : { episodes: [], title: '' };
   }
 
-  async fetchFeeds(urls) {
-    const res = await this.request('/api/feed/fetch', {
-      method: 'POST',
-      headers: this._headers(),
-      body: { urls }
-    });
-    if (!res.ok) return [];
-    const data = await res.json().catch(() => ({}));
-    return Array.isArray(data.feeds) ? data.feeds : [];
-  }
-
-  // ── Audio proxy (range-capable, for PWA offline caching) ────────────────
-
-  audioProxyUrl(audioUrl) {
-    return `${this.config.apiBase}/api/audio-proxy?url=${encodeURIComponent(audioUrl)}`;
-  }
-
-  async streamAudio(audioUrl) {
-    const res = await fetch(this.audioProxyUrl(audioUrl), { credentials: 'include' });
-    return res;
-  }
 }
 
 export default ApiClient;

@@ -3,7 +3,7 @@
 // player-UI sync, and the sleep timer.
 
 import { formatTime } from './utils.js';
-import { FALLBACK_ARTWORK } from './config.js';
+import { FALLBACK_ARTWORK, artworkUrl } from './config.js';
 
 export class PlaybackManager {
   constructor(app) {
@@ -154,6 +154,11 @@ export class PlaybackManager {
     });
     audio.addEventListener('error', () => {
       if (this.state.activeEngine === 'audio') {
+        if (this.state.currentEpisode && this.state.currentEpisode.locallyAvailable) {
+          this.state.playbackStatus = 'paused';
+          this.syncPlaybackButtons();
+          return;
+        }
         if (this.state.currentEpisode && !audio.src.includes('/api/audio-proxy')) {
           const proxySrc = `/api/audio-proxy?url=${encodeURIComponent(this.state.currentEpisode.audioUrl)}`;
           audio.src = proxySrc;
@@ -400,9 +405,13 @@ export class PlaybackManager {
       }
     } else {
       this.state.activeEngine = 'audio';
-      let streamUrl = episode.audioUrl;
-      if (window.location.protocol === 'https:' && streamUrl.startsWith('http://')) {
-        streamUrl = `/api/audio-proxy?url=${encodeURIComponent(streamUrl)}`;
+      let streamUrl;
+      if (episode.locallyAvailable) {
+        streamUrl = `/api/downloads/serve/${encodeURIComponent(episode.id)}`;
+      } else if (window.location.protocol === 'https:' && episode.audioUrl.startsWith('http://')) {
+        streamUrl = `/api/audio-proxy?url=${encodeURIComponent(episode.audioUrl)}`;
+      } else {
+        streamUrl = episode.audioUrl;
       }
       this.elements.audio.src = streamUrl;
       this.elements.audio.playbackRate = this.state.playbackSpeed;
@@ -420,7 +429,7 @@ export class PlaybackManager {
 
     this.elements.playerTitle.textContent = episode.title;
     this.elements.playerPodcast.textContent = episode.podcastTitle;
-    this.elements.playerArtwork.src = episode.artwork || FALLBACK_ARTWORK;
+    this.elements.playerArtwork.src = artworkUrl(episode.image, 'full');
     this.elements.playerArtwork.onerror = () => {
       this.elements.playerArtwork.onerror = null;
       this.elements.playerArtwork.src = FALLBACK_ARTWORK;
@@ -429,7 +438,7 @@ export class PlaybackManager {
     if (this.elements.miniTitle) this.elements.miniTitle.textContent = episode.title;
     if (this.elements.miniPodcast) this.elements.miniPodcast.textContent = episode.podcastTitle;
     if (this.elements.miniArtwork) {
-      this.elements.miniArtwork.src = episode.artwork || FALLBACK_ARTWORK;
+      this.elements.miniArtwork.src = artworkUrl(episode.image, 'large');
       this.elements.miniArtwork.onerror = () => {
         this.elements.miniArtwork.onerror = null;
         this.elements.miniArtwork.src = FALLBACK_ARTWORK;
@@ -440,7 +449,7 @@ export class PlaybackManager {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: episode.title,
         artist: episode.podcastTitle,
-        artwork: episode.artwork ? [{ src: episode.artwork, sizes: '512x512', type: 'image/png' }] : []
+        artwork: episode.image ? [{ src: artworkUrl(episode.image, 'full'), sizes: '512x512', type: 'image/jpeg' }] : []
       });
     }
 

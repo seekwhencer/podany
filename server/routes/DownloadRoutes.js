@@ -28,6 +28,22 @@ export class DownloadsRoutes {
       }
     });
 
+    router.get('/serve/:id', async (req, res, next) => {
+      try {
+        const id = req.params?.id;
+        if (!isString(id)) {
+          return json(res, 400, { error: 'id parameter is required.' });
+        }
+        const record = await this.downloads.getForPlayback(req.user.id, id);
+        if (!record) {
+          return json(res, 404, { error: 'Downloaded episode not available.' });
+        }
+        return this.downloads.serve(record, req, res);
+      } catch (err) {
+        return next(err);
+      }
+    });
+
     router.post('/', async (req, res, next) => {
       try {
         const { episodeGuid, title, audioUrl } = req.body ?? {};

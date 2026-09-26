@@ -3,7 +3,7 @@
 // feeds grid + feed detail, feed add/remove, and OPML import/export.
 
 import { escapeHtml, formatCompactDate, formatDurationCompact } from './utils.js';
-import { FALLBACK_ARTWORK, AUDIO_CACHE_NAME, DIR_PAGE_SIZE } from './config.js';
+import { FALLBACK_ARTWORK, artworkUrl, DIR_PAGE_SIZE } from './config.js';
 
 export class FeedsManager {
   constructor(app) {
@@ -105,7 +105,11 @@ export class FeedsManager {
 
   async fetchSingleFeed(url, incomingEpisodes, updatedMetadata) {
     try {
-      const feedData = await this.api.fetchFeed(url);
+      const id = this.state.feedIdByUrl ? this.state.feedIdByUrl[url] : null;
+      // Prefer DB read by subscription id. Fall back to URL fetch only when no id
+      // is known yet (freshly added feed, before saveFeedToServer returned its id).
+      const feedData = id ? await this.api.loadFeedById(id) : await this.api.fetchFeed(url);
+
       if (feedData && feedData.error) {
         if (!updatedMetadata[url]) {
           updatedMetadata[url] = {
@@ -118,11 +122,17 @@ export class FeedsManager {
         return null;
       }
 
+      const feedMeta = feedData && feedData.feed ? feedData.feed : feedData;
+      if (!feedMeta) {
+        return null;
+      }
+
       updatedMetadata[url] = {
-        title: feedData.title,
-        artwork: feedData.artwork,
-        episodesCount: feedData.episodesCount,
-        description: feedData.description
+        title: feedMeta.title,
+        artwork: feedMeta.artwork,
+        image: feedMeta.image,
+        episodesCount: feedMeta.episodesCount,
+        description: feedMeta.description
       };
 
       if (Array.isArray(feedData.episodes)) {
@@ -300,27 +310,10 @@ export class FeedsManager {
       if (feedsPanel) feedsPanel.classList.add('active');
     }
 
-    const epsToRemove = this.state.allEpisodes.filter(ep => ep.feedUrl === url);
-    const guidsToRemove = new Set(epsToRemove.map(ep => ep.guid));
-    let downloadsChanged = false;
-    for (const [guid, dl] of Object.entries(this.state.downloadedEpisodes)) {
-      if (guidsToRemove.has(guid) || dl.feedUrl === url) {
-        if ('caches' in window) {
-          try {
-            caches.open(AUDIO_CACHE_NAME).then(cache => cache.delete(dl.audioUrl)).catch(() => {});
-          } catch (e) {}
-        }
-        delete this.state.downloadedEpisodes[guid];
-        downloadsChanged = true;
-      }
-    }
-    if (downloadsChanged) {
-      this.app.downloads.saveDownloads();
-    }
-
     this.state.allEpisodes = this.state.allEpisodes.filter(ep => ep.feedUrl !== url);
     this.state.feeds = this.state.feeds.filter(f => f !== url);
     delete this.state.feedMetadata[url];
+    if (this.state.feedIdByUrl) delete this.state.feedIdByUrl[url];
     this.storage.saveFeeds(this.state.feeds);
     this.app.sync.removeFeedFromServer(url);
     this.app.timeline.processAndSortEpisodes();
@@ -542,7 +535,7 @@ export class FeedsManager {
 
       card.innerHTML = `
         <div class="feed-header">
-          <img class="feed-art" src="${meta.artwork || FALLBACK_ARTWORK}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
+          <img class="feed-art" src="${artworkUrl(meta.image, 'large')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
           <div class="feed-info">
             <h4>${escapeHtml(meta.title || url)}</h4>
             <p>${meta.error ? `<span style="color: #ef4444;">${escapeHtml(meta.error)}</span>` : `${meta.episodesCount || feedEpisodes.length} episodes`}</p>
@@ -662,7 +655,7 @@ export class FeedsManager {
           </button>
         </div>
         <div class="feed-detail-main">
-          <img class="feed-detail-art" src="${meta.artwork || FALLBACK_ARTWORK}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
+          <img class="feed-detail-art" src="${artworkUrl(meta.image, 'large')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
           <div class="feed-detail-info">
             <div class="feed-detail-title">${escapeHtml(meta.title || 'Untitled Podcast')}</div>
             <div class="feed-detail-author">${escapeHtml(meta.author || '')}</div>
@@ -720,6 +713,10 @@ export class FeedsManager {
     list.innerHTML = '';
 
     if (totalCount === 0) {
+      // Preview is the only remaining URL-based fetch and is allowed solely for
+      // feeds the user has NOT subscribed to yet. Subscribed feeds are read by DB
+      // id (loadFeedById) via refreshAllFeeds; here we fall back to fetching the
+      // RSS source so the user can listen before following.
       if (!isSubbed && !this.previewLoadingSet.has(feedUrl)) {
         this.previewLoadingSet.add(feedUrl);
         list.innerHTML = `

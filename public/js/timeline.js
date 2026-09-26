@@ -10,7 +10,7 @@ import {
   formatHumanRelativeDate,
   formatEpisodeDuration
 } from './utils.js';
-import { FALLBACK_ARTWORK } from './config.js';
+import { FALLBACK_ARTWORK, artworkUrl } from './config.js';
 
 export class TimelineManager {
   constructor(app) {
@@ -40,10 +40,6 @@ export class TimelineManager {
         return pos && (pos.completed === 1 || pos.completed === true);
       }).length;
       this.elements.playedCount.textContent = playedCount;
-    }
-    if (this.elements.downloadedCount) {
-      const dlCount = Object.keys(this.state.downloadedEpisodes || {}).length;
-      this.elements.downloadedCount.textContent = dlCount;
     }
   }
 
@@ -80,8 +76,6 @@ export class TimelineManager {
         const pos = this.state.playbackPositions[ep.guid];
         return pos && (pos.completed === 1 || pos.completed === true);
       });
-    } else if (this.state.filterMode === 'downloaded') {
-      list = list.filter(ep => !!this.state.downloadedEpisodes[ep.guid]);
     }
 
     if (this.state.filterMode === 'continue') {
@@ -94,9 +88,9 @@ export class TimelineManager {
       });
       this._pushCurrentToFront(list, currentGuid);
     } else if (this.state.sortOrder === 'newest') {
-      list.sort((a, b) => b.timestamp - a.timestamp);
+      list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     } else if (this.state.sortOrder === 'oldest') {
-      list.sort((a, b) => a.timestamp - b.timestamp);
+      list.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
     } else if (this.state.sortOrder === 'title-asc') {
       list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     } else if (this.state.sortOrder === 'title-desc') {
@@ -104,7 +98,7 @@ export class TimelineManager {
     } else if (this.state.sortOrder === 'podcast-asc') {
       list.sort((a, b) => {
         const comp = (a.podcastTitle || '').localeCompare(b.podcastTitle || '');
-        return comp !== 0 ? comp : b.timestamp - a.timestamp;
+        return comp !== 0 ? comp : (b.timestamp || 0) - (a.timestamp || 0);
       });
     } else if (this.state.sortOrder === 'duration-asc') {
       list.sort((a, b) => parseDurationSeconds(a.duration) - parseDurationSeconds(b.duration));
@@ -219,9 +213,6 @@ export class TimelineManager {
       } else if (this.state.filterMode === 'unplayed') {
         emptyTitle = 'All caught up';
         emptyMsg = 'You have listened to all episodes.';
-      } else if (this.state.filterMode === 'downloaded') {
-        emptyTitle = 'No downloaded episodes';
-        emptyMsg = 'Episodes you download for offline listening will appear here.';
       }
       container.innerHTML = `
         <div class="empty-state">
@@ -674,27 +665,9 @@ export class TimelineManager {
       btnTitle = 'Pause';
     }
 
-    const isDownloaded = !!this.state.downloadedEpisodes[ep.guid];
-    const isDownloading = this.state.downloadingGuids.has(ep.guid);
-    let dlIcon = this.config.cardIcons.DOWNLOAD;
-    let dlTitle = 'Download for offline';
-    if (isDownloading) {
-      dlIcon = this.config.cardIcons.DOWNLOAD_SPINNER;
-      dlTitle = 'Downloading...';
-    } else if (isDownloaded) {
-      dlIcon = this.config.cardIcons.DOWNLOADED;
-      dlTitle = 'Downloaded (Click to remove)';
-    }
-
-    const downloadBtnHtml = ep.isYouTube ? '' : `
-      <button class="btn-download-ep ${isDownloaded ? 'is-downloaded' : ''} ${isDownloading ? 'is-downloading' : ''}" title="${dlTitle}">
-        ${dlIcon}
-      </button>
-    `;
-
     card.innerHTML = `
       <div class="episode-card-top">
-        <img class="episode-artwork" src="${ep.artwork || FALLBACK_ARTWORK}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
+        <img class="episode-artwork" src="${artworkUrl(ep.image, 'thumb')}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
         <div class="episode-header-info">
           <div class="episode-podcast-name">${ep.isYouTube ? 'YOUTUBE' : escapeHtml(ep.podcastTitle)}</div>
           <div class="episode-title">${escapeHtml(ep.title)}</div>
@@ -710,7 +683,6 @@ export class TimelineManager {
           ${resumeTimeStr ? `<span class="ep-resume-time" title="Click to resume playback">• ${resumeTimeStr}</span>` : ''}
         </div>
         <div class="episode-card-actions" style="display:flex; gap:4px; flex-wrap:nowrap;">
-          ${downloadBtnHtml}
           <button class="btn-queue-ep ${isQueued ? 'is-queued' : ''}" title="${isQueued ? 'Remove from Up Next' : 'Add to Up Next'}">
             ${isQueued ? this.config.cardIcons.QUEUE_ADDED : this.config.cardIcons.QUEUE}
           </button>
@@ -745,18 +717,6 @@ export class TimelineManager {
       podNameEl.addEventListener('click', (e) => {
         e.stopPropagation();
         this.app.feeds.openFeedDetail(ep.feedUrl);
-      });
-    }
-
-    const dlBtn = card.querySelector('.btn-download-ep');
-    if (dlBtn) {
-      dlBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (this.state.downloadedEpisodes[ep.guid]) {
-          this.app.downloads.removeDownloadedEpisode(ep.guid);
-        } else {
-          this.app.downloads.downloadEpisode(ep);
-        }
       });
     }
 
@@ -815,7 +775,6 @@ export class TimelineManager {
         if (this.state.activeFeedDetailUrl) {
           this.app.feeds.renderFeedDetail(this.state.activeFeedDetailUrl);
         }
-        this.app.downloads.renderOfflineStorageSettings();
       });
     }
 

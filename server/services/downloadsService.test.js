@@ -13,7 +13,7 @@ class InMemoryDownloads {
   generateId(prefix = '') {
     return `${prefix}dl_${this.rows.length + 1}`;
   }
-  async create({ id, userId, episodeGuid, subscriptionId = null, title = '', audioUrl = null, filePath = null, fileSize = 0, status = 'pending', progress = 0 }) {
+  async create({ id, userId, episodeGuid, subscriptionId = null, title = '', audioUrl = null, filename = null, fileSize = 0, status = 'pending', progress = 0 }) {
     const now = Math.floor(Date.now() / 1000);
     this.rows.push({
       id,
@@ -22,7 +22,7 @@ class InMemoryDownloads {
       subscription_id: subscriptionId,
       title,
       audio_url: audioUrl,
-      file_path: filePath,
+      filename,
       file_size: fileSize,
       status,
       progress,
@@ -35,6 +35,9 @@ class InMemoryDownloads {
   }
   async findById(id) {
     return this.rows.find((r) => r.id === id) ?? null;
+  }
+  async findByIdAndUser(userId, id) {
+    return this.rows.find((r) => r.id === id && r.user_id === userId) ?? null;
   }
   async findByEpisode(userId, episodeGuid) {
     return this.rows.find((r) => r.user_id === userId && r.episode_guid === episodeGuid) ?? null;
@@ -138,8 +141,10 @@ test('register starts an automatic download that streams the file to disk', asyn
   assert.equal(done.file_size, 12);
   assert.equal(done.progress, 100);
   assert.ok(done.received_at > 0);
-  assert.equal(path.dirname(done.file_path), storageDir);
-  const content = await fs.readFile(done.file_path);
+  assert.equal(done.filename, `${record.id}.mp3`);
+  const expectedPath = path.join(storageDir, done.filename);
+  assert.equal(path.dirname(expectedPath), storageDir);
+  const content = await fs.readFile(expectedPath);
   assert.equal(content.toString(), 'abcdefghijkl');
   assert.equal(downloads.rows[0].status, 'completed');
 });
@@ -164,7 +169,7 @@ test('startDownload fails fast for disallowed urls without fetching', async () =
     episode_guid: 'ep-9',
     title: '',
     audio_url: 'http://169.254.169.254/latest/meta-data',
-    file_path: null,
+    filename: null,
     file_size: 0,
     status: 'pending',
     progress: 0,
@@ -185,30 +190,30 @@ test('startDownload fails fast for disallowed urls without fetching', async () =
 });
 
 test('remove deletes the row and the stored file', async () => {
-  const { service, downloads } = await buildDownloads();
+  const { service, downloads, storageDir } = await buildDownloads();
   service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([Buffer.from('data')]) });
   const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
   const done = await waitFor(async () => {
     const row = await downloads.findById(record.id);
-    return row && row.file_path ? row : null;
+    return row && row.filename ? row : null;
   });
-  assert.ok(done.file_path);
+  assert.ok(done.filename);
 
   const result = await service.remove('u1', 'ep-1');
   assert.equal(result.success, true);
   assert.equal(downloads.rows.length, 0);
-  await assert.rejects(() => fs.access(done.file_path));
+  await assert.rejects(() => fs.access(path.join(storageDir, done.filename)));
 });
 
 test('cleanup removes expired records and their files', async () => {
-  const { service, downloads } = await buildDownloads();
+  const { service, downloads, storageDir } = await buildDownloads();
   service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([Buffer.from('old')]) });
   const record = await service.register({ userId: 'u1', episodeGuid: 'ep-1', audioUrl: 'https://cdn.example.com/ep1.mp3' });
   const done = await waitFor(async () => {
     const row = await downloads.findById(record.id);
-    return row && row.file_path ? row : null;
+    return row && row.filename ? row : null;
   });
-  assert.ok(done.file_path);
+  assert.ok(done.filename);
 
   for (const row of downloads.rows) {
     row.updated_at = Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60;
@@ -217,7 +222,7 @@ test('cleanup removes expired records and their files', async () => {
   const result = await service.cleanup(30);
   assert.deepEqual(result.removed, [record.id]);
   assert.equal(downloads.rows.length, 0);
-  await assert.rejects(() => fs.access(done.file_path));
+  await assert.rejects(() => fs.access(path.join(storageDir, done.filename)));
 });
 
 test('register triggers an automatic download without an explicit start call', async () => {

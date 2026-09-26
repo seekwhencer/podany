@@ -23,7 +23,7 @@ export function createAppRouter(deps = {}) {
   router.use('/subscription', requireAuth, new SubscriptionRoutes({ ...(deps.feed ?? {}), config, subscriptions: deps.subscriptions ?? deps.sync }).getRouter());
   router.use('/playback', requireAuth, new PlaybackRoutes({ ...(deps.feed ?? {}), playback: deps.playback ?? deps.sync }).getRouter());
   router.use('/user', requireAuth, new UserRoutes({ userService: deps.userService }).getRouter());
-  router.use('/feed', new FeedRoutes({ ...(deps.feed ?? {}), config }).getRouter());
+  router.use('/feed', new FeedRoutes({ ...(deps.feed ?? {}), config, requireAuth, subscriptions: deps.subscriptions ?? deps.sync, downloads: deps.downloads }).getRouter());
   router.use('/audio-proxy', new AudioProxyRoutes({ ...(deps.feed ?? {}), config }).getRouter());
   router.use('/downloads', new DownloadsRoutes({ ...(deps.feed ?? {}), config, authDeps, sessions, auth }).getRouter());
 

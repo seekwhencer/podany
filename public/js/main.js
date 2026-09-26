@@ -5,7 +5,7 @@
 // Managers (each receives the shared `app` container):
 //   config, state, elements, api, storage — shared infrastructure
 //   theme, modal, playerUI                — shell / UI helpers
-//   auth, feeds, playback, queue, sync, downloads, timeline — features
+//   auth, feeds, playback, queue, sync, timeline — features
 
 import Config from './config.js';
 import AppState from './state.js';
@@ -20,7 +20,6 @@ import FeedsManager from './feeds.js';
 import PlaybackManager from './playback.js';
 import QueueManager from './queue.js';
 import SyncManager from './sync.js';
-import DownloadsManager from './downloads.js';
 import TimelineManager from './timeline.js';
 
 const app = {};
@@ -37,7 +36,6 @@ app.feeds = new FeedsManager(app);
 app.playback = new PlaybackManager(app);
 app.queue = new QueueManager(app);
 app.sync = new SyncManager(app);
-app.downloads = new DownloadsManager(app);
 app.timeline = new TimelineManager(app);
 
 // ── Boot sequence ───────────────────────────────────────────────────────────
@@ -73,14 +71,13 @@ async function initApp() {
     //    Login/Session werden Feeds + Positionen bereits syncronisiert.
     await app.auth.checkAuth();
 
-    // 3. Persistente Daten vom Server laden (Feeds/Positionen/Downloads).
+    // 3. Persistente Daten vom Server laden (Feeds/Positionen).
     //    Fehler werden nicht verschluckt: 401/403 -> Auth-Flow, sonst
     //    Ladefehler an die UI statt eines stillen leeren Zustands (Schritt 7).
-    app.modal.showStatus('Lade Feeds, Positionen und Downloads...');
+    app.modal.showStatus('Lade Feeds und Positionen...');
     try {
         app.state.feeds = await app.storage.loadFeeds();
         app.state.playbackPositions = await app.storage.loadPositions();
-        await app.downloads.loadDownloads();
     } catch (err) {
         handleBootError(err);
         return;
@@ -110,13 +107,11 @@ function wireAllEvents() {
     app.auth.wireEvents();
     app.feeds.wireEvents();
     app.queue.wireEvents();
-    app.downloads.wireEvents();
     app.timeline.wireEvents();
 }
 
 function refreshStaticUI() {
     app.queue.updateQueueUI();
-    app.downloads.updateDownloadedCountUI();
     app.feeds.updateFeedCountUI();
     app.feeds.updateDockVisibility();
 }

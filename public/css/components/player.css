@@ -63,7 +63,7 @@
       background: var(--bg-card-hover);
 
       .track-title {
-        color: var(--accent-orange);
+        color: var(--color-primary);
       }
     }
 
@@ -149,7 +149,7 @@
         -webkit-appearance: none;
         appearance: none;
         height: 5px;
-        background: linear-gradient(to right, var(--accent-orange) var(--seek-pct, 0%), rgba(255, 255, 255, 0.15) var(--seek-pct, 0%));
+        background: linear-gradient(to right, var(--color-primary) var(--seek-pct, 0%), rgba(255, 255, 255, 0.15) var(--seek-pct, 0%));
         border-radius: var(--radius-full);
         outline: none;
         cursor: pointer;
@@ -161,7 +161,7 @@
 
         [data-theme="light"] &,
         :root:not([data-theme="dark"]) & {
-          background: linear-gradient(to right, var(--accent-orange) var(--seek-pct, 0%), rgba(0, 0, 0, 0.12) var(--seek-pct, 0%));
+          background: linear-gradient(to right, var(--color-primary) var(--seek-pct, 0%), rgba(0, 0, 0, 0.12) var(--seek-pct, 0%));
         }
 
         ::-webkit-slider-thumb {
@@ -170,7 +170,7 @@
           width: 13px;
           height: 13px;
           border-radius: 50%;
-          background: var(--accent-orange);
+          background: var(--color-primary);
           cursor: pointer;
         }
       }
@@ -223,11 +223,11 @@
 }
 
 #btn-player-mark-played:hover {
-  color: var(--accent-orange);
+  color: var(--color-primary);
 }
 
 #btn-player-notes:hover {
-  color: var(--accent-orange);
+  color: var(--color-primary);
 }
 
 /* Compact Mini Player */

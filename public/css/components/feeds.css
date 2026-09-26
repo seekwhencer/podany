@@ -164,7 +164,7 @@
         }
 
         &.is-in-progress .recent-ep-duration {
-          color: var(--accent-orange);
+          color: var(--color-primary);
           font-weight: 500;
         }
 
@@ -194,7 +194,7 @@
           }
 
           &.is-playing {
-            background: var(--accent-orange);
+            background: var(--color-primary);
             color: #ffffff;
           }
         }
@@ -299,7 +299,7 @@
 
       .feed-detail-author {
         font-size: var(--fs-sm);
-        color: var(--accent-orange);
+        color: var(--color-primary);
         font-weight: 500;
       }
 

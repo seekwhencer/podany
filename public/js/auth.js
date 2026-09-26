@@ -69,15 +69,15 @@ export class AuthManager {
     }
 
     if (user) {
-      this.elements.authModal.classList.add('hidden');
-      this.state.userEmail = user.email || '';
-      const subs = await this.api.listSubscriptions();
-      this.state.feeds = Array.isArray(subs.feeds) ? subs.feeds.map(f => f.feed_url) : [];
-      this.storage.saveFeeds(this.state.feeds);
-      this.updateSyncStatusUI('Authenticated via Session Cookie (Server Synced)', this.state.userEmail, true);
-      await this.app.sync.loadPositionsFromServer();
-      await this.app.feeds.refreshAllFeeds();
-      return;
+        this.elements.authModal.classList.add('hidden');
+        this.state.userEmail = user.email || '';
+        // syncFeedsWithServer populates feedIdByUrl (subscription id per feed URL),
+        // which refreshAllFeeds needs to read episodes from the DB by id instead of
+        // falling back to URL-based RSS preview. RSS-fetched episodes carry no
+        // `image` hash, so skipping this yields placeholder artwork after a reload.
+        await this.app.sync.syncFeedsWithServer();
+        this.updateSyncStatusUI('Authenticated via Session Cookie (Server Synced)', this.state.userEmail, true);
+        return;
     }
 
     this.elements.authModal.classList.remove('hidden');
@@ -226,6 +226,7 @@ export class AuthManager {
       this.elements.authModal.classList.add('hidden');
       this.updateSyncStatusUI('Authenticated via Password Login (Server Synced)', this.state.userEmail, true);
       await this.app.sync.syncFeedsWithServer();
+      this.app.feeds.updateFeedCountUI();
     } catch (e) {
       this.setFormStatus(this.elements.passwordStatusMsg, '#ef4444', `Error: ${e.message}`);
     }

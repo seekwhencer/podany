@@ -78,7 +78,6 @@
       <nav class="nav-tabs" aria-label="Main Navigation">
         <button class="nav-tab active" data-tab="timeline" id="tab-timeline">Timeline</button>
         <button class="nav-tab" data-tab="feeds" id="tab-feeds"><span>Feeds</span><span class="tab-badge" id="feed-count">0</span></button>
-        <button class="nav-tab" data-tab="downloads" id="tab-downloads"><span>Downloads</span><span class="tab-badge" id="downloads-tab-count"></span></button>
         <!-- Settings tab hidden from nav, triggered by gear icon in header -->
         <button class="nav-tab" data-tab="settings" id="tab-settings" style="display:none;" aria-hidden="true">Settings</button>
       </nav>
@@ -157,19 +156,6 @@
       <section class="tab-panel" id="panel-feeds">
         <div class="feeds-grid" id="feeds-grid">
           <!-- Populated dynamically -->
-        </div>
-      </section>
-
-      <!-- TAB: Downloads (offline episodes) -->
-      <section class="tab-panel" id="panel-downloads">
-        <div class="settings-card" id="offline-storage-card">
-          <h3>Offline Downloads</h3>
-          <p id="offline-storage-desc">Episodes downloaded to this device for offline playback without internet.</p>
-          <div class="offline-storage-actions">
-            <span class="offline-storage-count" id="offline-storage-count">0 episodes (0 MB)</span>
-            <button class="btn btn-secondary btn-sm" id="btn-clear-downloads">Clear Audio Cache</button>
-          </div>
-          <div class="offline-episodes-list" id="offline-episodes-list"></div>
         </div>
       </section>
 
@@ -344,7 +330,6 @@
       <div class="dock-filters">
         <button class="chip-filter active" data-filter="unplayed">Unplayed</button>
         <button class="chip-filter" data-filter="continue">Continue (<span id="continue-count">0</span>)</button>
-        <button class="chip-filter" data-filter="downloaded">Downloaded (<span id="downloaded-count">0</span>)</button>
         <button class="chip-filter" data-filter="played">Played (<span id="played-count">0</span>)</button>
         <button class="chip-filter" data-filter="all">All Episodes</button>
       </div>

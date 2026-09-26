@@ -54,16 +54,35 @@ CREATE TABLE IF NOT EXISTS downloads (
   title VARCHAR(512),
   artwork TEXT,
   image TEXT,
-  audio_url TEXT,
-  file_path TEXT,
-  file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
+   audio_url TEXT,
+   filename TEXT,
+   file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   progress INT NOT NULL DEFAULT 0,
   error TEXT,
   created_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   updated_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   received_at BIGINT UNSIGNED,
-  UNIQUE KEY uniq_downloads_user_episode (user_id, episode_guid),
-  INDEX idx_downloads_user (user_id),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  timestamp BIGINT UNSIGNED,
+  pub_date TEXT,
+  duration VARCHAR(64),
+   description TEXT,
+   content LONGTEXT,
+   is_youtube TINYINT NOT NULL DEFAULT 0,
+   playlist_id VARCHAR(64),
+   UNIQUE KEY uniq_downloads_user_episode (user_id, episode_guid),
+   INDEX idx_downloads_user (user_id),
+   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Idempotent migration for existing databases: the migrator re-applies schema.sql
+-- on every run and only uses CREATE TABLE IF NOT EXISTS, so add the columns that
+-- Phase 1/5 introduced (episode metadata + playlist_id) with guards to stay safe
+-- across repeated runs. Fresh DBs get them via CREATE TABLE; existing DBs via ALTER.
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS timestamp BIGINT UNSIGNED;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS pub_date TEXT;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS duration VARCHAR(64);
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS content LONGTEXT;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS is_youtube TINYINT NOT NULL DEFAULT 0;
+ALTER TABLE downloads ADD COLUMN IF NOT EXISTS playlist_id VARCHAR(64);

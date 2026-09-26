@@ -161,15 +161,11 @@ Strategie. Kann parallel zu `listSubscriptions`/`listPositions`/`listDownloads` 
 
 ## 6. Randbedingungen und offene Fragen
 
-1. **Preview für nicht-subskribierte Feeds** (`renderFeedDetail`, `feeds.js:722`):
-     Aktuell wird `fetchSingleFeed` genutzt, um Episoden *vor* dem Folgen VORANZEIGEN zu können.
-     Ohne Subscription-Row existiert kein `id` → kein DB-Lesezugriff.
-     → **Offen:** Preview beibehalten (nur für nicht-subskribierte URLs, also der einzige
-     verbleibende URL-Fetch) **oder** Preview-Funktion einschränken/entfallen lassen.
+1. **Preview für nicht-subskribierte Feeds** (`renderFeedDetail`, `feeds.js:735`): **ENTSCHEIDUNG → Option (a) umgesetzt.** Preview wird **beibehalten, aber streng auf nicht-subskribierte URLs beschränkt** — es ist der einzige verbleibende URL-Fetch. Bedingung in `renderFeedDetail`: `totalCount === 0 && !isSubbed` (`feeds.js:738`). Subskribierte Feeds werden ausschließlich DB-basiert über `loadFeedById` geladen (`refreshAllFeeds` → `fetchSingleFeed` löst `url→id` auf). Der Fallback auf `fetchFeed(url)` in `fetchSingleFeed` (`feeds.js:109`) bleibt als transientes Sicherheitsnetz für den Add-Race-Bereich bestehen (Feed existiert, aber `id` wurde durch `saveFeedToServer` noch nicht zurückgegeben). `api.fetchFeeds(urls)` (Bulk, nie im Frontendgerufen) wurde entfernt; nur `api.fetchFeed(url)` bleibt bestehen.
 
 2. **YouTube-Feeds** (Playlists): Beim Add-Time-Parse entsteht oft nur eine „Single-Episode"-
      Repräsentation. Muss in `downloads` als Episode persistierbar sein; `isYouTube`/`playlistId`
-     in den Metadaten mit speichern (Option A: `is_youtube`).
+      in den Metadaten mit speichern (Option A: `is_youtube`). → ✅ **umgesetzt**: `downloads.playlist_id VARCHAR(64)` (schema + Migrator-Guard), Persistierung über `register`→`create`, `playlistId` wird im YouTube-Parser (Atom- + OEmbed-Pfad) mitgeführt, `getFeedById` rekonstruiert `isYouTubePlaylist`.
 
 3. **Offline-Audio unverändert**: Service-Worker-Cache (`podany-audio-v1`) und
    `audioProxyUrl`/`streamAudio` bleiben bestehen; nur die Episoden-*Metadaten*-Ladestrategie
@@ -271,32 +267,38 @@ Strategie. Kann parallel zu `listSubscriptions`/`listPositions`/`listDownloads` 
 
 ### Phase 4 — Preview-Frage (§6.1) klären
 
-**Schritt 4.1 — Entscheidung dokumentieren**
-- Option (a): Preview beibehalten **nur** für nicht-subskribierte URLs (einziger verbleibender URL-Fetch über `fetchFeed`).
-- Option (b): Preview einschränken/entfallen lassen (Detail nur nach Follow).
-- Umsetzung entsprechend in `feeds.js` (`renderFeedDetail`, `fetchSingleFeed`) und `api.js`.
+**Schritt 4.1 — Entscheidung dokumentieren & umsetzen** — ✅ DONE (Option a).
+- Entscheidung: **Preview beibehalten, streng auf nicht-subskribierte URLs beschränkt** (einziger verbleibender URL-Fetch über `fetchFeed`). Details zu §6.1.
+- Umsetzung: `api.fetchFeeds(urls)` (tot, niegerufen) entfernt; nur `fetchFeed(url)` bleibt (`api.js`). Preview-Bedingung in `renderFeedDetail` = `totalCount === 0 && !isSubbed`; Fallback in `fetchSingleFeed` auf `fetchFeed` nur wenn keine `id` bekannt (Add-Race). Kommentare zur Einordnung ergänzt (`feeds.js`, `api.js`).
 
 ### Phase 5 — YouTube & Randbedingungen
 
-**Schritt 5.1 — YouTube-Feeds (`youtubeService.js`, `downloads.is_youtube`)**
-- Sicherstellen, dass Playlist-Episoden als Episode persistierbar sind und `is_youtube = 1` setzen; `isYouTube`/`playlistId` in den Metadaten mitführen (§6.2).
+**Schritt 5.1 — YouTube-Feeds (`youtubeService.js`, `downloads.is_youtube`)** — ✅ DONE.
+- `downloads` um `playlist_id VARCHAR(64)` erweitert (`server/db/schema.sql`: `CREATE TABLE` + idempotentes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS playlist_id` für Bestandsdaten, da der Migrator `schema.sql` jedes Mal komplett anwendet).
+- `server/models/Downloads.js`: `playlist_id` in `UPDATABLE` + `create()`-INSERT aufgenommen.
+- `server/services/downloadsService.js` `register()`: nimmt `playlistId` an und reicht sie an `downloads.create()` weiter.
+- `server/routes/SubscriptionRoutes.js` `enqueueEpisodesForFeed`: gibt `playlistId: episode.playlistId || null` mit (neben dem bereits bestehenden `isYoutube: episode.isYouTube ? 1 : 0`).
+- `server/services/feed/youtubeService.js` `fetchFeed`: spritzt bei der Atom-/Videos.xml-Pfade `playlistId` in jede geparste Episode (`isYouTube` ist dort bereits gesetzt), damit auch Multi-Episode-YouTube-Feeds die Metadaten mitführen. OEmbed-Single-Episode hat `playlistId`/`isYouTubePlaylist` bereits.
+- `server/services/feedService.js` `getFeedById`: liefert `e.playlist_id AS playlistId` und rekonstruiert `isYouTubePlaylist` (`CASE WHEN playlist_id IS NOT NULL AND <> ''`) für DB-geladene Episoden, damit die YouTube-Player-Logik (`playback.js`) Playlist-Playback auch nach dem DB-Laden auslöst.
 
-**Schritt 5.2 — Offline-Audio unverändert prüfen**
-- Service-Worker-Cache (`podany-audio-v1`), `audioProxyUrl`/`streamAudio` bleiben bestehen; nur Episoden-Metadaten-Ladestrategie ändert sich (§6.3).
+**Schritt 5.2 — Offline-Audio unverändert prüfen** — ✅ UNVERÄNDERT bestätigt.
+- Service-Worker-Cache (`podany-audio-v1`, `public/js/config.js:39`), `audioProxyUrl`/`streamAudio` (`public/js/api.js:224/228`) und Cache-Invalidation (`public/js/ui/modal.js:292`) unverändert; keine Frontend-Änderung an Audio-Pfad. Die Änderungen betreffen nur die serverseitige Episoden-Metadaten-Persistierung (`playlist_id`) und den Lese-Output von `getFeedById`.
 
 ### Phase 6 — Migration bestehender Daten & Verifikation
 
-**Schritt 6.1 — Bestandsdaten (`server/db/migrate-data.js` oder Backfill-Skript)**
-- Alte `downloads`-Rows ohne neue Spalten → fehlende Felder leer; Sortierung fällt auf `created_at`/`0`. Reiner Lesezugriff bleibt funktionsfähig (§6.5). Backfill optional, ausgelöst beim nächsten Add/Refresh.
+**Schritt 6.1 — Bestandsdaten (`server/db/migrator.js`, `server/db/schema.sql`) — ✅ DONE.**
+- **Bug behoben:** `splitStatements()` in `migrator.js` hat Full-Line-Comments (`-- …`) nicht korrekt entfernt (nur das `--`-Präfix, der Text blieb und wurde an die nachfolgende Statement Zeile gehängt). Dadurch war das letzte `schema.sql`-Statement ein ungültiges Gemisch aus Kommentar-Text + `ALTER TABLE`, das bei `migrate()` mit echter DB gefailed wäre. Jetzt wird jede Line ab `--` abgeschnitten → saubere Statement-Aufteilung.
+- **Idempotente Guards ergänzt:** Bisher bekam nur `playlist_id` einen `ADD COLUMN IF NOT EXISTS`-Guard; die 6 Metadaten-Spalten (`timestamp`, `pub_date`, `duration`, `description`, `content`, `is_youtube`) standen nur in `CREATE TABLE` (gilt nur frische DBs). Für Bestandsdaten jetzt 7 idempotente `ALTER TABLE downloads ADD COLUMN IF NOT EXISTS …`-Statements am Ende von `schema.sql`. `npm run migrate` fügt bestehenden DBs sämliche neue Spalten fehlerfrei und wiederholungssicher hinzu.
+- Bestands-Rows ohne gefüllte neue Spalten → fehlende Felder leer; Sortierung fällt auf `0` (§6.5). Reiner Lesezugriff bleibt funktionsfähig. Backfill nicht nötig, da Add/Refresh die Spalten bei neuem Parsen füllt.
+- Regressionstest `server/db/migrator.test.js` (+3 Tests) deckt Comment-Stripping, Schema-Aufteilung und Idempotenz ab.
 
-**Schritt 6.2 — Manueller Frontend-Check**
-- Refresh ohne Netzwerk: Feeds/Episoden aus DB geladen (kein leerer Client).
-- Sortierung „neueste/älteste"/„Continue" nach `timestamp`; Fallback auf `created_at`.
-- Feed-Detail für subskribierte und nicht-subskribierte Feeds.
+**Schritt 6.2 — Frontend-Check (statische Verifikation, Sandbox ohne Browser) — ✅ DONE.**
+- Pfade verifiziert: Subskribierte laden DB-basiert über `loadFeedById(id)` (`feeds.js:111`, `api.js:190`); url→id-Mapping in `sync.js:27/50`; Preview streng auf nicht-subskribierte URLs (`renderFeedDetail`, `feeds.js:737`: `totalCount === 0 && !isSubbed`); Add-Race-Fallback auf `fetchFeed(url)` nur ohne bekannte `id`.
+- **Bug behoben:** `timeline.js` newest/älteste/podcast-Sortierung rechnete roh `b.timestamp - a.timestamp` → `NaN` für Bestandsdaten-Episoden ohne `timestamp` (schlechter als das in §6.5 dokumentierte „Fallback auf 0"). Jetzt null-safe `(x.timestamp || 0)`, deckungsgleich mit der bereits korrekt geguardeten `Continue`-Sortierung (`timeline.js:91,155`). Sortierung ist damit deterministisch.
 
-**Schritt 6.3 — Typcheck/Build**
-- Frontend-Bundle neu bauen (`npm run build`, esbuild) — in dieser Sandbox nicht mit verfügbarem Node ausführbar, Build in produktiver Umgebung ausführen (siehe `SERVER.md`).
-- Bei vorhandenen Lint/Typecheck-Skripten diese laufen lassen.
+**Schritt 6.3 — Build/Tests — ✅ DONE.**
+- Frontend-Bundle neu gebaut (`./node_modules/.bin/esbuild … --outfile=public/dist/bundle.js`, exit 0, 122.1 kb). Kein Lint/Typecheck-Skript im Projekt vorhanden; Build über esbuild (native binary, nicht via `node`) ausgeführt.
+- Test-Suite: `node --test` → 123 Tests, **116 pass, 7 fail**. Die 7 Fehler sind pre-existing (`auth send-link`, `sync *`-Routes, alle 404 statt 200) und unabhängig von dieser Änderung — gegen `HEAD`-Baseline verifiziert (identischer Failure-Set, +3 neue migrator-Tests, 0 neue Fehler).
 
 ---
 

@@ -195,7 +195,7 @@
     font-size: var(--fs-xs);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--accent-orange);
+    color: var(--color-primary);
     font-weight: 600;
     margin-bottom: 0.5rem;
   }
@@ -249,7 +249,7 @@
 
   span {
     width: 3px;
-    background: var(--accent-orange);
+    background: var(--color-primary);
     border-radius: 1px;
     animation: soundBar 1s ease-in-out infinite alternate;
 
@@ -398,8 +398,8 @@
 
       .btn-queue-item-remove:hover {
         background: rgba(224, 90, 43, 0.15);
-        color: var(--accent-orange);
-        border-color: var(--accent-orange);
+        color: var(--color-primary);
+        border-color: var(--color-primary);
       }
     }
   }
@@ -443,7 +443,7 @@
 .show-notes-podcast-tag {
   font-size: var(--fs-sm);
   font-weight: 500;
-  color: var(--accent-orange);
+  color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   display: block;

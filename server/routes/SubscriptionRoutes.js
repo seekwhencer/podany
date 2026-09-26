@@ -37,7 +37,14 @@ export class SubscriptionRoutes {
                     title: episode.title || '',
                     audioUrl: episode.audioUrl,
                     artwork: episode.artwork || '',
-                    subscriptionId
+                    subscriptionId,
+                    timestamp: episode.timestamp ?? null,
+                    pubDate: episode.pubDate || null,
+                    duration: episode.duration || null,
+                    description: episode.description || null,
+                    content: episode.content || null,
+                    isYoutube: episode.isYouTube ? 1 : 0,
+                    playlistId: episode.playlistId || null
                 });
             } catch (err) {
                 console.error(`[server] Could not enqueue download for "${episode.title}":`, err.message);

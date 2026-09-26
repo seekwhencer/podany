@@ -1,8 +1,22 @@
-import { createWriteStream, promises as fs } from 'node:fs';
+import { createWriteStream, createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { Downloads } from '../models/Downloads.js';
 import { isValidExternalUrl } from '../utils/url.js';
 import { ImageService } from './imageService.js';
+
+const CONTENT_TYPES = {
+    mp3: 'audio/mpeg',
+    m4a: 'audio/mp4',
+    mp4: 'video/mp4',
+    ogg: 'audio/ogg',
+    opa: 'audio/ogg',
+    opus: 'audio/opus',
+    wav: 'audio/wav',
+    flac: 'audio/flac',
+    webm: 'audio/webm',
+    mkv: 'video/x-matroska',
+    mov: 'video/quicktime'
+};
 
 const DEFAULT_RETENTION_DAYS = 30;
 const DEFAULT_CONCURRENCY = 4;
@@ -57,7 +71,7 @@ export class DownloadsService {
         return this.downloads.findById(id);
     }
 
-    async register({ userId, episodeGuid, title = '', audioUrl = null, subscriptionId = null, artwork = '' }) {
+    async register({ userId, episodeGuid, title = '', audioUrl = null, subscriptionId = null, artwork = '', timestamp = null, pubDate = null, duration = null, description = null, content = null, isYoutube = 0, playlistId = null }) {
         if (audioUrl && !isValidExternalUrl(audioUrl)) {
             throw new Error('Invalid or disallowed audio URL.');
         }
@@ -79,10 +93,17 @@ export class DownloadsService {
             artwork,
             image,
             audioUrl,
-            filePath: null,
+            filename: null,
             fileSize: 0,
             status: 'pending',
-            progress: 0
+            progress: 0,
+            timestamp,
+            pubDate,
+            duration,
+            description,
+            content,
+            isYoutube,
+            playlistId
         });
         const created = await this.downloads.findById(id);
         this.enqueue(created);
@@ -98,6 +119,7 @@ export class DownloadsService {
         }
 
         const filePath = path.join(this.storageDir, `${record.id}.mp3`);
+        const filename = this._filenameFor(filePath);
         try {
             const response = await this.fetchImpl(audioUrl, {
                 headers: { 'User-Agent': 'Podany/1.0 (+SelfHosted)' }
@@ -127,7 +149,7 @@ export class DownloadsService {
 
             await this.downloads.update(record.id, {
                 status: 'completed',
-                file_path: filePath,
+                filename,
                 file_size: size,
                 progress: 100,
                 received_at: Math.floor(Date.now() / 1000)
@@ -142,11 +164,61 @@ export class DownloadsService {
         return this.downloads.findById(record.id);
     }
 
+    async getForPlayback(userId, id) {
+        const record = await this.downloads.findByIdAndUser(userId, id);
+        if (!record || record.status !== 'completed' || !record.filename) {
+            return null;
+        }
+        return record;
+    }
+
+    async serve(record, req, res) {
+        const filePath = path.join(this.storageDir, record.filename);
+        let stats;
+        try {
+            stats = await fs.stat(filePath);
+        } catch (err) {
+            res.status(404).json({ error: 'Downloaded episode not available.' });
+            return;
+        }
+
+        const total = stats.size;
+        const contentType = CONTENT_TYPES[(record.filename.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
+        const range = req.headers.range;
+
+        if (range && /^bytes=/.test(range)) {
+            const [startStr, endStr] = range.slice(6).split('-');
+            let start = Number.parseInt(startStr, 10);
+            let end = endStr == null ? total - 1 : Number.parseInt(endStr, 10);
+            if (!Number.isFinite(start)) start = 0;
+            if (!Number.isFinite(end) || end >= total) end = total - 1;
+
+            if (start >= total || start > end) {
+                res.status(416).set('Content-Range', `bytes */${total}`).json({ error: 'Range not satisfiable.' });
+                return;
+            }
+
+            res.status(206);
+            res.set('Content-Type', contentType);
+            res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+            res.set('Accept-Ranges', 'bytes');
+            res.set('Content-Length', end - start + 1);
+            createReadStream(filePath, { start, end }).pipe(res);
+            return;
+        }
+
+        res.status(200);
+        res.set('Content-Type', contentType);
+        res.set('Accept-Ranges', 'bytes');
+        res.set('Content-Length', total);
+        createReadStream(filePath).pipe(res);
+    }
+
     async remove(userId, episodeGuid) {
         const record = await this.downloads.findByEpisode(userId, episodeGuid);
         await this.downloads.remove(userId, episodeGuid);
-        if (record && record.file_path) {
-            await this.deleteFile(record.file_path);
+        if (record && record.filename) {
+            await this.deleteFile(this._pathForFilename(record.filename));
         }
         return { success: true, removed: episodeGuid };
     }
@@ -154,10 +226,22 @@ export class DownloadsService {
     async deleteById(id) {
         const record = await this.downloads.findById(id);
         await this.downloads.deleteById(id);
-        if (record && record.file_path) {
-            await this.deleteFile(record.file_path);
+        if (record && record.filename) {
+            await this.deleteFile(this._pathForFilename(record.filename));
         }
         return { success: true, id };
+    }
+
+    _filenameFor(filePath) {
+        const base = path.basename(filePath);
+        const dot = base.lastIndexOf('.');
+        return dot > 0
+            ? `${base.slice(0, dot)}.${base.slice(dot + 1).toLowerCase()}`
+            : base;
+    }
+
+    _pathForFilename(filename) {
+        return path.join(this.storageDir, filename);
     }
 
     async deleteFile(filePath) {
@@ -174,7 +258,7 @@ export class DownloadsService {
         );
         const removed = [];
         for (const record of all) {
-            if (record.file_path) await this.deleteFile(record.file_path);
+            if (record.filename) await this.deleteFile(this._pathForFilename(record.filename));
             await this.downloads.deleteById(record.id);
             removed.push(record.id);
         }

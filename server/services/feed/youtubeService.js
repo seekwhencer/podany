@@ -39,6 +39,9 @@ export class YouTubeService {
                 const xmlText = await res.text();
                 const feedData = this.podcast.parsePodcastXml(xmlText, rssUrl, inputUrl);
                 if (feedData.episodes && feedData.episodes.length > 0) {
+                    feedData.episodes.forEach((ep) => {
+                        if (ep && !ep.playlistId) ep.playlistId = playlistId;
+                    });
                     return feedData;
                 }
             }

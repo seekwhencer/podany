@@ -1,6 +1,6 @@
 // storage.js — Podany Storage (API adapter)
 // Thin adapter over ApiClient. Persistent data (feeds, playback positions,
-// downloads, session token) is read/written via the server API; client-only
+// session token) is read/written via the server API; client-only
 // preferences (theme, queue) and the episode/metadata cache live in memory
 // (AppState). No localStorage / sessionStorage access remains.
 
@@ -9,7 +9,6 @@ export class Storage {
         this.config = config;
         this.api = api;
         this.state = state;
-        this._registeredGuids = new Set();
     }
 
     // ── Session token (server cookie + header; client mirrors it in state) ──
@@ -55,47 +54,6 @@ export class Storage {
     // up with those per-episode writes.
     async savePositions(positions) {
         return positions && typeof positions === 'object' ? positions : {};
-    }
-
-    // ── Downloads (server: downloads) ───────────────────────────────────────
-
-    async loadDownloads() {
-        const items = await this.api.listDownloads();
-        this._registeredGuids.clear();
-        const map = {};
-        items.forEach(d => {
-            const guid = d.episode_guid;
-            if (!guid) return;
-            this._registeredGuids.add(guid);
-            map[guid] = {
-                guid,
-                feedUrl: null,
-                audioUrl: d.audio_url || '',
-                title: d.title || '',
-                podcastTitle: '',
-                artwork: d.artwork || d.image || null,
-                duration: '',
-                timestamp: d.received_at || d.created_at || '',
-                size: d.file_size || 0,
-                downloadedAt: d.created_at || Date.now()
-            };
-        });
-        if (this.state) this.state.downloadedEpisodes = map;
-        return map;
-    }
-
-    async saveDownloads(downloads) {
-        const map = downloads && typeof downloads === 'object' ? downloads : {};
-        Object.values(map).forEach(ep => {
-            if (!ep || !ep.guid || this._registeredGuids.has(ep.guid)) return;
-            this._registeredGuids.add(ep.guid);
-            this.api.registerDownload({
-                episodeGuid: ep.guid,
-                title: ep.title || '',
-                audioUrl: ep.audioUrl || ''
-            }).catch(() => {});
-        });
-        if (this.state) this.state.downloadedEpisodes = map;
     }
 
     // ── Episode + feed metadata cache (client memory only) ──────────────────

@@ -10,6 +10,7 @@ import { migrate } from './db/migrator.js';
 import { createCors } from './middleware/cors.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createAppRouter } from './routes/index.js';
+import { ImageRoutes } from './routes/ImageRoutes.js';
 import { User } from './models/User.js';
 import { hashPassword } from './utils/password.js';
 
@@ -59,6 +60,11 @@ export function createApp(deps = {}) {
     }
     next();
   });
+
+  // Serve episode artwork thumbnails directly (not under /api) so <img> tags
+  // can load them without an API/auth round-trip. Must run before the static
+  // middleware and the SPA fallback below.
+  app.use('/images', new ImageRoutes({ config }).getRouter());
 
   app.use(express.static(PUBLIC_DIR));
 

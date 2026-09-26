@@ -22,6 +22,9 @@ export class SyncManager {
             const subs = await this.api.listSubscriptions();
             const remoteFeeds = Array.isArray(subs.feeds) ? subs.feeds : [];
             this.state.feeds = remoteFeeds.map(f => f.feed_url);
+            const urlToId = {};
+            remoteFeeds.forEach(f => { if (f && f.id && f.feed_url) urlToId[f.feed_url] = f.id; });
+            this.state.feedIdByUrl = urlToId;
             this.storage.saveFeeds(this.state.feeds);
             this.app.auth.updateSyncStatusUI('Server Synced', this.state.userEmail, true);
             await this.loadPositionsFromServer();
@@ -42,7 +45,10 @@ export class SyncManager {
 
     async saveFeedToServer(feedUrl, title = '', image = '') {
         try {
-            await this.api.addSubscription({ feedUrl, title, image });
+            const result = await this.api.addSubscription({ feedUrl, title, image });
+            if (result && result.id) {
+                this.state.feedIdByUrl = { ...this.state.feedIdByUrl, [feedUrl]: result.id };
+            }
         } catch (e) { }
     }
 

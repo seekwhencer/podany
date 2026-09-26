@@ -1,6 +1,6 @@
 import BaseModel from './BaseModel.js';
 
-const UPDATABLE = ['subscription_id', 'title', 'artwork', 'image', 'audio_url', 'file_path', 'file_size', 'status', 'progress', 'error', 'received_at', 'updated_at'];
+const UPDATABLE = ['subscription_id', 'title', 'artwork', 'image', 'audio_url', 'filename', 'file_size', 'status', 'progress', 'error', 'received_at', 'updated_at', 'timestamp', 'pub_date', 'duration', 'description', 'content', 'is_youtube', 'playlist_id'];
 
 export class Downloads extends BaseModel {
   constructor(pool) {
@@ -17,15 +17,22 @@ export class Downloads extends BaseModel {
     artwork = null,
     image = null,
     audioUrl = null,
-    filePath = null,
+    filename = null,
     fileSize = 0,
     status = 'pending',
-    progress = 0
+    progress = 0,
+    timestamp = null,
+    pubDate = null,
+    duration = null,
+    description = null,
+    content = null,
+    isYoutube = 0,
+    playlistId = null
   }) {
     return this.execute(
-      `INSERT INTO downloads (id, user_id, episode_guid, subscription_id, title, artwork, image, audio_url, file_path, file_size, status, progress)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, userId, episodeGuid, subscriptionId, title, artwork, image, audioUrl, filePath, fileSize, status, progress]
+      `INSERT INTO downloads (id, user_id, episode_guid, subscription_id, title, artwork, image, audio_url, filename, file_size, status, progress, timestamp, pub_date, duration, description, content, is_youtube, playlist_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, userId, episodeGuid, subscriptionId, title, artwork, image, audioUrl, filename, fileSize, status, progress, timestamp, pubDate, duration, description, content, isYoutube, playlistId]
     );
   }
 
@@ -35,6 +42,10 @@ export class Downloads extends BaseModel {
 
   async findByEpisode(userId, episodeGuid) {
     return this.findOne('SELECT * FROM downloads WHERE user_id = ? AND episode_guid = ?', [userId, episodeGuid]);
+  }
+
+  async findByIdAndUser(userId, id) {
+    return this.findOne('SELECT * FROM downloads WHERE id = ? AND user_id = ?', [id, userId]);
   }
 
   async update(id, fields = {}) {

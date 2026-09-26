@@ -47,17 +47,14 @@ export class Elements {
     this.panels = qa('.tab-panel');
     this.tabFeeds = g('tab-feeds');
     this.tabTimeline = g('tab-timeline');
-    this.tabDownloads = g('tab-downloads');
     this.tabSettings = g('tab-settings');
     this.panelFeeds = g('panel-feeds');
     this.panelTimeline = g('panel-timeline');
-    this.panelDownloads = g('panel-downloads');
     this.panelFeedDetail = g('panel-feed-detail');
     this.feedDetailHeader = g('feed-detail-header');
     this.feedDetailEpisodes = g('feed-detail-episodes');
     this.themeBtns = qa('.btn-theme');
     this.feedCount = g('feed-count');
-    this.downloadsTabCount = g('downloads-tab-count');
     this.btnOpenSettings = g('btn-open-settings');
 
     // Header controls
@@ -76,12 +73,7 @@ export class Elements {
     this.btnToggleContinue = g('btn-toggle-continue');
     this.continueToggleLabel = g('continue-toggle-label');
     this.playedCount = g('played-count');
-    this.downloadedCount = g('downloaded-count');
     this.offlineBadge = g('offline-badge');
-    this.offlineStorageCard = g('offline-storage-card');
-    this.offlineStorageCount = g('offline-storage-count');
-    this.btnClearDownloads = g('btn-clear-downloads');
-    this.offlineEpisodesList = g('offline-episodes-list');
     this.filterChips = qa('.chip-filter');
     this.bottomActionDock = g('bottom-action-dock');
 
