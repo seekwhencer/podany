@@ -269,7 +269,7 @@ test('download:completed records status in the download state', () => {
   client.connect();
   const ws = lastInstance();
   ws.fireOpen();
-  ws.fireMessage(JSON.stringify({ type: 'download:completed', payload: { episodeGuid: 'ep1', title: 'T' } }));
+  ws.fireMessage(JSON.stringify({ type: 'download:completed', payload: { episodeId: 'ep1', title: 'T' } }));
   assert.equal(client.state.downloadStatus.ep1.status, 'completed');
 });
 

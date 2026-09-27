@@ -31,7 +31,7 @@ export class Storage {
     async loadFeeds() {
         const res = await this.api.listSubscriptions();
         const feeds = Array.isArray(res.feeds) ? res.feeds : [];
-        return feeds.map(f => (typeof f === 'string' ? f : f.feed_url)).filter(Boolean);
+        return feeds.map(f => (typeof f === 'string' ? f : f.id)).filter(Boolean);
     }
 
     // Feed add/remove are persisted to the server by SyncManager

@@ -36,18 +36,21 @@ export class PlaybackRoutes {
 
     router.post('/positions', async (req, res, next) => {
       try {
-        const { episodeGuid, positionSeconds, completed } = req.body ?? {};
-        if (!isString(episodeGuid)) {
-          return json(res, 400, { error: 'episodeGuid is required.' });
+        const body = req.body ?? {};
+        const episodeId = body.episodeId;
+        const positionSeconds = body.positionSeconds;
+        const completed = body.completed;
+        if (!isString(episodeId)) {
+          return json(res, 400, { error: 'episodeId is required.' });
         }
         const result = await this.playback.savePosition({
           userId: req.user.id,
-          episodeGuid,
+          episodeId,
           positionSeconds: Number.isFinite(Number(positionSeconds)) ? Number(positionSeconds) : 0,
           completed: Boolean(completed)
         });
         this._emit(EVENT_PLAYBACK_POSITION_UPDATED, {
-          episodeGuid,
+          episodeId: result.episodeId,
           positionSeconds: Number.isFinite(Number(positionSeconds)) ? Number(positionSeconds) : 0,
           completed: Boolean(completed)
         }, req.user.id);
@@ -59,12 +62,13 @@ export class PlaybackRoutes {
 
     router.delete('/positions', async (req, res, next) => {
       try {
-        const { episodeGuid } = req.body ?? {};
-        if (!isString(episodeGuid)) {
-          return json(res, 400, { error: 'episodeGuid is required.' });
+        const body = req.body ?? {};
+        const episodeId = body.episodeId;
+        if (!isString(episodeId)) {
+          return json(res, 400, { error: 'episodeId is required.' });
         }
-        const result = await this.playback.removePosition(req.user.id, episodeGuid);
-        this._emit(EVENT_PLAYBACK_POSITION_UPDATED, { episodeGuid, positionSeconds: null, completed: false }, req.user.id);
+        const result = await this.playback.removePosition(req.user.id, episodeId);
+        this._emit(EVENT_PLAYBACK_POSITION_UPDATED, { episodeId, positionSeconds: null, completed: false }, req.user.id);
         return json(res, 200, result);
       } catch (err) {
         return next(err);

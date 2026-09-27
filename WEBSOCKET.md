@@ -137,7 +137,7 @@ Einheitliches JSON über die Verbindung. Jedes Payload-Objekt trägt ein `type` 
 `payload`:
 
 ```json
-{ "type": "download:completed", "payload": { "id": "dl_abc", "episodeGuid": "…", "title": "…" } }
+{ "type": "download:completed", "payload": { "id": "dl_abc", "episodeId": "…", "title": "…" } }
 ```
 
 - `type` ist ein stabiler, punktgetrennter Name (`Bereich:Aktion`), definiert in
@@ -152,14 +152,14 @@ Einheitliches JSON über die Verbindung. Jedes Payload-Objekt trägt ein `type` 
 |---|---|---|---|
 | `connection:hello` | Server→Client | beim Öffnen | `{ "server": "podany", "ts": 17… }` |
 | `ping` / `pong` | bidirektional | Heartbeat | `{ "ts": 17… }` |
-| `download:progress` | Server→Client | während `startDownload` | `{ "id", "episodeGuid", "subscriptionId?", "progress" (0–100) }` |
-| `download:completed` | Server→Client | Download erfolgreich (`status='completed'`) | `{ "id", "episodeGuid", "subscriptionId?", "title", "fileSize", "filename", "duration?" }` |
-| `download:failed` | Server→Client | Download fehlgeschlagen | `{ "id", "episodeGuid", "error" }` |
-| `image:completed` | Server→Client | Artwork gedownloaded (Hash verfügbar) | `{ "episodeGuid", "image" (Hash), "artworkUrl": "/images/<hash>-full.jpg" }` |
-| `thumbnail:ready` | Server→Client | Thumbnails generiert (`sharp`) | `{ "episodeGuid", "image", "sizes": ["thumb","mid","full"] }` |
+| `download:progress` | Server→Client | während `startDownload` | `{ "id", "episodeId", "subscriptionId?", "progress" (0–100) }` |
+| `download:completed` | Server→Client | Download erfolgreich (`status='completed'`) | `{ "id", "episodeId", "subscriptionId?", "title", "fileSize", "filename", "duration?" }` |
+| `download:failed` | Server→Client | Download fehlgeschlagen | `{ "id", "episodeId", "error" }` |
+| `image:completed` | Server→Client | Artwork gedownloaded (Hash verfügbar) | `{ "episodeId", "image" (Hash), "artworkUrl": "/images/<hash>-full.jpg" }` |
+| `thumbnail:ready` | Server→Client | Thumbnails generiert (`sharp`) | `{ "episodeId", "image", "sizes": ["thumb","mid","full"] }` |
 | `subscription:added` | Server→Client | Subscription hinzugefügt | `{ "id" (sub_), "feedUrl", "title" }` |
 | `subscription:removed` | Server→Client | Subscription entfernt | `{ "feedUrl" }` |
-| `playback:position-updated` | Server→Client | Position gespeichert/gelöscht | `{ "episodeGuid", "positionSeconds", "completed" }` |
+| `playback:position-updated` | Server→Client | Position gespeichert/gelöscht | `{ "episodeId", "positionSeconds", "completed" }` |
 | `session:closed` | Server→Client | Session ungültig/Logout serverseitig | `{ "reason": "…" }` |
 
 > **Hinweis zu `image:completed` / `thumbnail:ready`:** Im aktuellen Ablauf werden Bild
@@ -184,7 +184,7 @@ Die Services/Routes emittieren über eine injizierte Emitter-Schnittstelle
 ### 5.1 Downloads & Bilder (`server/services/downloadsService.js`)
 - `register()` (Zeilen ~74–111): nach erfolgreichem
   `this.images.downloadAndGenerate(artwork)` → `emit({ userId, type: image:completed })`
-  und `emit({ userId, type: thumbnail:ready })`. Payload mit `episodeGuid` + zurückgegebenem
+   und `emit({ userId, type: thumbnail:ready })`. Payload mit `episodeId` + zurückgegebenem
   `image`-Hash.
 - `startDownload()` (Zeilen ~113–165):
   - Erfolg nach `status='completed'` → `download:completed` (mit `userId` aus dem Record).
@@ -411,12 +411,13 @@ relevant (Abschnitt 9 konfigurierbar).
 - **Downloads/Bilder (`server/services/downloadsService.js`).**
   - `register()` (`downloadsService.js:74-111`): nach erfolgreichem
     `this.images.downloadAndGenerate(artwork)` → `emit({ userId, type: EVENT_IMAGE,
-    payload: { episodeGuid, image } })` + `emit({ …, type: EVENT_THUMBNAIL, payload:
-    { episodeGuid, image, sizes } })`. `userId`/`episodeGuid` aus den Parametern.
+    payload: { episodeId, image } })` + `emit({ …, type: EVENT_THUMBNAIL, payload:
+    { episodeId, image, sizes } })`. `episodeId` ist die generierte `downloads.id`,
+    `userId`/`episodeGuid` (Anlege-Key) aus den Parametern.
   - `startDownload()` (`downloadsService.js:113-165`): nach
     `status='completed'` → `download:completed` (mit `id`, `fileSize`, `filename`,
     `title`, optional `duration`). Fehlerpfade (`Invalid URL`, `Upstream HTTP …`,
-    Catch-Block) → `download:failed` (`{ id, episodeGuid, error }`). Optional
+    Catch-Block) → `download:failed` (`{ id, episodeId, error }`). Optional
     Fortschritt aus der Schreibschleife → `download:progress` (`{ id, progress }`).
 - **Subscription (`server/routes/SubscriptionRoutes.js`).**
   - `post('/')` (`SubscriptionRoutes.js:67-107`) nach `addSubscription(...)` →
@@ -424,8 +425,8 @@ relevant (Abschnitt 9 konfigurierbar).
   - `delete('/')` (`SubscriptionRoutes.js:109-120`) nach `removeSubscription(...)` →
     `subscription:removed` (`{ feedUrl }`).
 - **Playback (`server/routes/PlaybackRoutes.js` / `services/playbackService.js`).**
-  - `POST /positions` (Save/Upsert) → `playback:position-updated`
-    (`{ episodeGuid, positionSeconds, completed }`).
+   - `POST /positions` (Save/Upsert) → `playback:position-updated`
+     (`{ episodeId, positionSeconds, completed }`).
   - `DELETE /positions` (Remove) → `playback:position-updated` mit Positionsnull bzw.
     `playback:position-removed`.
 - **Session:** bei serverseitiger Session-Ungültigkeit (z. B. Logout über alle Geräte,

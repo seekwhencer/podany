@@ -16,28 +16,28 @@ export class ModalManager {
   // ── Navigation stack ────────────────────────────────────────────────────
 
   _currentView() {
-    if (this.state.activeFeedDetailUrl) return { tab: null, feedUrl: this.state.activeFeedDetailUrl };
+    if (this.state.activeFeedDetailId) return { tab: null, feedTarget: this.state.activeFeedDetailId };
     const activeTab = this.elements.tabs ?
       document.querySelector('.nav-tab.active')?.dataset.tab || 'timeline' : 'timeline';
-    return { tab: activeTab, feedUrl: null };
+    return { tab: activeTab, feedTarget: null };
   }
 
-  _applyView({ tab, feedUrl }) {
+  _applyView({ tab, feedTarget }) {
     if (this.elements.tabs) this.elements.tabs.forEach(t => t.classList.remove('active'));
     if (this.elements.panels) this.elements.panels.forEach(p => p.classList.remove('active'));
     if (this.elements.btnOpenSettings) this.elements.btnOpenSettings.classList.remove('is-active');
 
-    if (feedUrl) {
-      this.state.activeFeedDetailUrl = feedUrl;
+    if (feedTarget) {
+      this.state.activeFeedDetailId = feedTarget;
       if (this.elements.panelFeedDetail) this.elements.panelFeedDetail.classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      const meta = this.state.feedMetadata[feedUrl] || {};
+      const meta = this.state.feedMetadata[feedTarget] || {};
       if (this.elements.searchInput) {
         this.elements.searchInput.placeholder = `Search in ${meta.title || 'podcast'}...`;
       }
-      this.app.feeds.renderFeedDetail(feedUrl);
+      this.app.feeds.renderFeedDetail(feedTarget);
     } else {
-      this.state.activeFeedDetailUrl = null;
+      this.state.activeFeedDetailId = null;
       if (this.elements.panelFeedDetail) this.elements.panelFeedDetail.classList.remove('active');
       const targetTab = tab || 'timeline';
       const tabEl = document.getElementById(`tab-${targetTab}`);
@@ -58,16 +58,16 @@ export class ModalManager {
     this.app.feeds.updateDockVisibility();
   }
 
-  navigateTo(tab, feedUrl, pushBrowser = true) {
+  navigateTo(tab, feedTarget, pushBrowser = true) {
     const cur = this._currentView();
-    if (cur.tab === tab && cur.feedUrl === feedUrl) return;
+    if (cur.tab === tab && cur.feedTarget === feedTarget) return;
     this.state.navHistory.push(cur);
 
     if (pushBrowser) {
-      const hash = feedUrl ? `feed=${encodeURIComponent(feedUrl)}` : (tab || 'timeline');
-      window.history.pushState({ tab, feedUrl }, '', '#' + hash);
+      const hash = feedTarget ? `feed=${encodeURIComponent(feedTarget)}` : (tab || 'timeline');
+      window.history.pushState({ tab, feedTarget }, '', '#' + hash);
     }
-    this._applyView({ tab, feedUrl });
+    this._applyView({ tab, feedTarget });
   }
 
   navigateBack() {
@@ -89,7 +89,7 @@ export class ModalManager {
       this._applyView(prev);
       return true;
     }
-    this._applyView({ tab: 'timeline', feedUrl: null });
+    this._applyView({ tab: 'timeline', feedTarget: null });
     return false;
   }
 
@@ -108,32 +108,32 @@ export class ModalManager {
       }
       if (modalClosed) return;
 
-      if (e.state && (e.state.tab !== undefined || e.state.feedUrl !== undefined)) {
+      if (e.state && (e.state.tab !== undefined || e.state.feedTarget !== undefined)) {
         this._applyView(e.state);
       } else if (window.location.hash) {
         const raw = window.location.hash.slice(1);
         if (raw.startsWith('feed=')) {
-          this._applyView({ tab: null, feedUrl: decodeURIComponent(raw.slice(5)) });
+          this._applyView({ tab: null, feedTarget: decodeURIComponent(raw.slice(5)) });
         } else if (['timeline', 'feeds', 'downloads', 'settings'].includes(raw)) {
-          this._applyView({ tab: raw, feedUrl: null });
+          this._applyView({ tab: raw, feedTarget: null });
         } else {
-          this._applyView({ tab: 'timeline', feedUrl: null });
+          this._applyView({ tab: 'timeline', feedTarget: null });
         }
       } else {
-        this._applyView({ tab: 'timeline', feedUrl: null });
+        this._applyView({ tab: 'timeline', feedTarget: null });
       }
     });
 
     const hash = window.location.hash ? window.location.hash.slice(1) : '';
     if (hash.startsWith('feed=')) {
-      const feedUrl = decodeURIComponent(hash.slice(5));
-      this._applyView({ tab: null, feedUrl });
-      window.history.replaceState({ tab: null, feedUrl }, '', '#' + hash);
+      const feedTarget = decodeURIComponent(hash.slice(5));
+      this._applyView({ tab: null, feedTarget });
+      window.history.replaceState({ tab: null, feedTarget }, '', '#' + hash);
     } else if (['timeline', 'feeds', 'downloads', 'settings'].includes(hash)) {
-      this._applyView({ tab: hash, feedUrl: null });
-      window.history.replaceState({ tab: hash, feedUrl: null }, '', '#' + hash);
+      this._applyView({ tab: hash, feedTarget: null });
+      window.history.replaceState({ tab: hash, feedTarget: null }, '', '#' + hash);
     } else {
-      window.history.replaceState({ tab: 'timeline', feedUrl: null }, '', '#timeline');
+      window.history.replaceState({ tab: 'timeline', feedTarget: null }, '', '#timeline');
     }
   }
 
@@ -269,13 +269,13 @@ export class ModalManager {
   // ── Global reset (settings: clear all storage) ──────────────────────────
 
   async resetAll() {
-    const feedUrls = [...this.state.feeds];
+    const feedIds = [...this.state.feeds];
     const positionGuids = Object.keys(this.state.playbackPositions);
 
     // Persisted data lives on the server; delete it there instead of clearing
     // browser storage. A pure client-state reset would leave server rows behind.
-    for (const url of feedUrls) {
-      try { await this.app.api.removeSubscription(url); } catch (e) {}
+    for (const id of feedIds) {
+      try { await this.app.api.removeSubscriptionById(id); } catch (e) {}
     }
     for (const guid of positionGuids) {
       try { await this.app.api.removePosition(guid); } catch (e) {}

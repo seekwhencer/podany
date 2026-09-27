@@ -31,6 +31,11 @@ export class SubscriptionService {
     await this.subscriptions.remove(userId, feedUrl);
     return { success: true, removed: feedUrl };
   }
+
+  async removeById(userId, id) {
+    await this.subscriptions.removeById(userId, id);
+    return { success: true, removed: id };
+  }
 }
 
 export default SubscriptionService;

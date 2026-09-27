@@ -10,6 +10,7 @@
     "db:migrate": "node server/db/migrator.js",
     "build": "esbuild public/js/main.js --bundle --minify --outfile=public/dist/bundle.js --format=esm",
     "migrate:data": "node server/db/migrate-data.js",
+    "flush": "node server/db/flush.js",
     "test": "node --test"
   },
   "keywords": [

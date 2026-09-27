@@ -4,7 +4,10 @@ import { FeedService } from '../services/feedService.js';
 import { DownloadsService } from '../services/downloadsService.js';
 import { isValidExternalUrl } from '../utils/url.js';
 import { json } from '../utils/response.js';
-import { EVENT_SUBSCRIPTION_ADDED, EVENT_SUBSCRIPTION_REMOVED } from '../live/protocol.js';
+import {
+    EVENT_SUBSCRIPTION_ADDED,
+    EVENT_SUBSCRIPTION_REMOVED
+} from '../live/protocol.js';
 
 function isString(value) {
     return typeof value === 'string' && value.length > 0;
@@ -61,6 +64,7 @@ export class SubscriptionRoutes {
                 console.error(`[server] Could not enqueue download for "${episode.title}":`, err.message);
             }
         }
+
     }
 
     getRouter() {
@@ -108,11 +112,13 @@ export class SubscriptionRoutes {
                     pubDate
                 });
 
+                json(res, 200, feed);
+
                 this._emit(EVENT_SUBSCRIPTION_ADDED, { id: feed.id, feedUrl, title }, req.user.id);
 
-                void this.enqueueEpisodesForFeed(req.user.id, feedUrl, feed.id, feeds.flatMap((f) => f.episodes ?? []));
+                this.enqueueEpisodesForFeed(req.user.id, feedUrl, feed.id, feeds.flatMap((f) => f.episodes ?? []));
 
-                return json(res, 200, feed);
+                return
 
             } catch (err) {
                 return next(err);
@@ -121,12 +127,17 @@ export class SubscriptionRoutes {
 
         router.delete('/', async (req, res, next) => {
             try {
-                const { feedUrl } = req.body ?? {};
-                if (!isString(feedUrl)) {
-                    return json(res, 400, { error: 'feedUrl is required.' });
+                const { id, feedUrl } = req.body ?? {};
+                let result;
+                if (isString(id)) {
+                    result = await this.subscriptions.removeById(req.user.id, id);
+                    this._emit(EVENT_SUBSCRIPTION_REMOVED, { id }, req.user.id);
+                } else if (isString(feedUrl)) {
+                    result = await this.subscriptions.removeSubscription(req.user.id, feedUrl);
+                    this._emit(EVENT_SUBSCRIPTION_REMOVED, { feedUrl }, req.user.id);
+                } else {
+                    return json(res, 400, { error: 'id or feedUrl is required.' });
                 }
-                const result = await this.subscriptions.removeSubscription(req.user.id, feedUrl);
-                this._emit(EVENT_SUBSCRIPTION_REMOVED, { feedUrl }, req.user.id);
                 return json(res, 200, result);
             } catch (err) {
                 return next(err);

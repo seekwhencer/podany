@@ -34,18 +34,6 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS playback_state (
-  id VARCHAR(64) PRIMARY KEY,
-  user_id VARCHAR(64) NOT NULL,
-  episode_guid TEXT NOT NULL,
-  position_seconds REAL NOT NULL DEFAULT 0,
-  completed TINYINT NOT NULL DEFAULT 0,
-  last_listened_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
-  UNIQUE KEY uniq_playback_state_user_episode (user_id, episode_guid),
-  INDEX idx_playback_state_user (user_id),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS downloads (
   id VARCHAR(64) PRIMARY KEY,
   user_id VARCHAR(64) NOT NULL,
@@ -57,22 +45,37 @@ CREATE TABLE IF NOT EXISTS downloads (
    audio_url TEXT,
    filename TEXT,
    file_size BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  status VARCHAR(20) NOT NULL DEFAULT 'pending',
-  progress INT NOT NULL DEFAULT 0,
-  error TEXT,
-  created_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
-  updated_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
-  received_at BIGINT UNSIGNED,
-  timestamp BIGINT UNSIGNED,
-  pub_date TEXT,
-  duration VARCHAR(64),
-   description TEXT,
-   content LONGTEXT,
-   is_youtube TINYINT NOT NULL DEFAULT 0,
-   playlist_id VARCHAR(64),
-   UNIQUE KEY uniq_downloads_user_episode (user_id, episode_guid),
-   INDEX idx_downloads_user (user_id),
-   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+   status VARCHAR(20) NOT NULL DEFAULT 'pending',
+   progress INT NOT NULL DEFAULT 0,
+   error TEXT,
+   created_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
+   updated_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
+   received_at BIGINT UNSIGNED,
+   timestamp BIGINT UNSIGNED,
+   pub_date TEXT,
+   duration VARCHAR(64),
+    description TEXT,
+    content LONGTEXT,
+    is_youtube TINYINT NOT NULL DEFAULT 0,
+    playlist_id VARCHAR(64),
+    UNIQUE KEY uniq_downloads_user_episode (user_id, episode_guid),
+    INDEX idx_downloads_user (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS playback_state (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  episode_id VARCHAR(64) NOT NULL,
+  position_seconds REAL NOT NULL DEFAULT 0,
+  completed TINYINT NOT NULL DEFAULT 0,
+  last_listened_at BIGINT UNSIGNED NOT NULL DEFAULT (UNIX_TIMESTAMP()),
+  episode_guid TEXT,
+  UNIQUE KEY uniq_playback_state_user_episode (user_id, episode_id),
+  INDEX idx_playback_state_user (user_id),
+  INDEX idx_playback_state_episode (episode_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (episode_id) REFERENCES downloads(id) ON DELETE CASCADE
 );
 
 -- Idempotent migration for existing databases: the migrator re-applies schema.sql
@@ -86,3 +89,16 @@ ALTER TABLE downloads ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE downloads ADD COLUMN IF NOT EXISTS content LONGTEXT;
 ALTER TABLE downloads ADD COLUMN IF NOT EXISTS is_youtube TINYINT NOT NULL DEFAULT 0;
 ALTER TABLE downloads ADD COLUMN IF NOT EXISTS playlist_id VARCHAR(64);
+
+-- ============================================================================
+-- playback_state.episode_id — GUID.md Phase 1 (LIVE)
+-- ---------------------------------------------------------------------------
+-- Canonical key changed from episode_guid to episode_id (= downloads.id, dl_).
+-- downloads.episode_guid stays as a column (global dedupe / enqueue key).
+--
+-- Fresh databases get the new layout via the CREATE TABLE above. Existing
+-- databases keep the old episode_guid layout; this script does NOT alter them.
+-- Migrating existing playback_state rows to episode_id is Phase 7
+-- (npm run migrate:data), using the Lazy Anchor (#2) mapping onto downloads.id
+-- before the FK is enforced. See GUID.md §3.1 / §6.
+-- ============================================================================

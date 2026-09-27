@@ -28,7 +28,7 @@ export class TimelineManager {
         const currentGuid = this.state.currentEpisode ? this.state.currentEpisode.guid : null;
         if (this.elements.continueCount) {
             const inProgressCount = this.state.allEpisodes.filter(ep => {
-                const pos = this.state.playbackPositions[ep.guid];
+                const pos = this.state.playbackPositions[ep.id];
                 const isCurrent = currentGuid && ep.guid === currentGuid;
                 return (!pos || !pos.completed) && (isCurrent || (pos && pos.position > 2));
             }).length;
@@ -36,7 +36,7 @@ export class TimelineManager {
         }
         if (this.elements.playedCount) {
             const playedCount = this.state.allEpisodes.filter(ep => {
-                const pos = this.state.playbackPositions[ep.guid];
+                const pos = this.state.playbackPositions[ep.id];
                 return pos && (pos.completed === 1 || pos.completed === true);
             }).length;
             this.elements.playedCount.textContent = playedCount;
@@ -59,29 +59,29 @@ export class TimelineManager {
 
         if (this.state.filterMode === 'continue') {
             list = list.filter(ep => {
-                const pos = this.state.playbackPositions[ep.guid];
+                const pos = this.state.playbackPositions[ep.id];
                 const isCurrent = currentGuid && ep.guid === currentGuid;
                 return (!pos || !pos.completed) && (isCurrent || (pos && pos.position > 2));
             });
             this._pushCurrentToFront(list, currentGuid);
         } else if (this.state.filterMode === 'unplayed') {
             list = list.filter(ep => {
-                const pos = this.state.playbackPositions[ep.guid];
+                const pos = this.state.playbackPositions[ep.id];
                 const isCurrent = currentGuid && ep.guid === currentGuid;
                 if (isCurrent) return false;
                 return !pos || (!pos.completed && (!pos.position || pos.position <= 2));
             });
         } else if (this.state.filterMode === 'played') {
             list = list.filter(ep => {
-                const pos = this.state.playbackPositions[ep.guid];
+                const pos = this.state.playbackPositions[ep.id];
                 return pos && (pos.completed === 1 || pos.completed === true);
             });
         }
 
         if (this.state.filterMode === 'continue') {
             list.sort((a, b) => {
-                const posA = this.state.playbackPositions[a.guid];
-                const posB = this.state.playbackPositions[b.guid];
+                const posA = this.state.playbackPositions[a.id];
+                const posB = this.state.playbackPositions[b.id];
                 const timeA = (posA && posA.lastListenedAt) || (a.timestamp ? a.timestamp / 1000 : 0);
                 const timeB = (posB && posB.lastListenedAt) || (b.timestamp ? b.timestamp / 1000 : 0);
                 return timeB - timeA;
@@ -138,14 +138,14 @@ export class TimelineManager {
         const currentGuid = this.state.currentEpisode ? this.state.currentEpisode.guid : null;
 
         let inProgressEps = this.state.allEpisodes.filter(ep => {
-            const pos = this.state.playbackPositions[ep.guid];
+            const pos = this.state.playbackPositions[ep.id];
             const isCurrent = currentGuid && ep.guid === currentGuid;
             return (!pos || !pos.completed) && (isCurrent || (pos && pos.position > 2));
         });
 
         inProgressEps.sort((a, b) => {
-            const posA = this.state.playbackPositions[a.guid];
-            const posB = this.state.playbackPositions[b.guid];
+            const posA = this.state.playbackPositions[a.id];
+            const posB = this.state.playbackPositions[b.id];
             const timeA = (posA && posA.lastListenedAt) || (a.timestamp ? a.timestamp / 1000 : 0);
             const timeB = (posB && posB.lastListenedAt) || (b.timestamp ? b.timestamp / 1000 : 0);
             return timeB - timeA;
@@ -380,14 +380,14 @@ export class TimelineManager {
     // ── Episode cards ───────────────────────────────────────────────────────
 
     toggleMarkPlayed(ep) {
-        const current = this.state.playbackPositions[ep.guid];
+        const current = this.state.playbackPositions[ep.id];
         const isCompleted = current && (current.completed === 1 || current.completed === true);
         if (isCompleted) {
-            this.app.sync.savePlaybackPositionToServer(ep.guid, 0, false);
+            this.app.sync.savePlaybackPositionToServer(ep.id, 0, false);
         } else {
-            this.app.sync.savePlaybackPositionToServer(ep.guid, 0, true);
-            if (this.app.queue.isEpisodeQueued(ep.guid)) {
-                this.app.queue.removeFromQueue(ep.guid);
+            this.app.sync.savePlaybackPositionToServer(ep.id, 0, true);
+            if (this.app.queue.isEpisodeQueued(ep.id)) {
+                this.app.queue.removeFromQueue(ep.id);
             }
         }
         this.renderContinueShelf();
@@ -537,7 +537,7 @@ export class TimelineManager {
                 if (resumeBadge) resumeBadge.textContent = `• Resumes at ${formatTime(targetTime)}`;
 
                 if (commit) {
-                    this.state.playbackPositions[ep.guid] = {
+                    this.state.playbackPositions[ep.id] = {
                         position: targetTime,
                         completed: false,
                         lastListenedAt: Math.floor(Date.now() / 1000)
@@ -613,9 +613,9 @@ export class TimelineManager {
         const isCurrentlyActive = this.state.currentEpisode && this.state.currentEpisode.guid === ep.guid;
         const isPlaying = isCurrentlyActive && this.state.playbackStatus === 'playing';
         const isLoading = isCurrentlyActive && this.state.playbackStatus === 'loading';
-        const isQueued = this.app.queue.isEpisodeQueued(ep.guid);
+        const isQueued = this.app.queue.isEpisodeQueued(ep.id);
 
-        const savedPos = this.state.playbackPositions[ep.guid];
+        const savedPos = this.state.playbackPositions[ep.id];
         const isCompleted = savedPos && (savedPos.completed === 1 || savedPos.completed === true);
         const hasProgress = (isCurrentlyActive || (savedPos && savedPos.position > 2)) && !isCompleted;
         const curPos = isCurrentlyActive
@@ -713,10 +713,10 @@ export class TimelineManager {
         }
 
         const podNameEl = card.querySelector('.episode-podcast-name');
-        if (podNameEl && ep.feedUrl) {
+        if (podNameEl) {
             podNameEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.app.feeds.openFeedDetail(ep.feedUrl);
+                this.app.feeds.openFeedDetail(ep.subscriptionId || ep.feedUrl);
             });
         }
 
@@ -772,8 +772,8 @@ export class TimelineManager {
                 this.processAndSortEpisodes();
                 this.renderTimeline();
                 this.app.feeds.renderFeedsGrid();
-                if (this.state.activeFeedDetailUrl) {
-                    this.app.feeds.renderFeedDetail(this.state.activeFeedDetailUrl);
+                if (this.state.activeFeedDetailId) {
+                    this.app.feeds.renderFeedDetail(this.state.activeFeedDetailId);
                 }
             });
         }
@@ -783,8 +783,8 @@ export class TimelineManager {
                 this.state.sortOrder = e.target.value;
                 this.processAndSortEpisodes();
                 this.renderTimeline();
-                if (this.state.activeFeedDetailUrl) {
-                    this.app.feeds.renderFeedDetail(this.state.activeFeedDetailUrl);
+                if (this.state.activeFeedDetailId) {
+                    this.app.feeds.renderFeedDetail(this.state.activeFeedDetailId);
                 }
             });
         }

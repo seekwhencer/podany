@@ -21,10 +21,10 @@ export class SyncManager {
         try {
             const subs = await this.api.listSubscriptions();
             const remoteFeeds = Array.isArray(subs.feeds) ? subs.feeds : [];
-            this.state.feeds = remoteFeeds.map(f => f.feed_url);
-            const urlToId = {};
-            remoteFeeds.forEach(f => { if (f && f.id && f.feed_url) urlToId[f.feed_url] = f.id; });
-            this.state.feedIdByUrl = urlToId;
+            this.state.feeds = remoteFeeds.map(f => f.id);
+            const urlById = {};
+            remoteFeeds.forEach(f => { if (f && f.id && f.feed_url) urlById[f.id] = f.feed_url; });
+            this.state.feedUrlById = urlById;
             this.storage.saveFeeds(this.state.feeds);
             this.app.auth.updateSyncStatusUI('Server Synced', this.state.userEmail, true);
             await this.loadPositionsFromServer();
@@ -45,16 +45,15 @@ export class SyncManager {
 
     async saveFeedToServer(feedUrl, title = '', image = '') {
         try {
-            const result = await this.api.addSubscription({ feedUrl, title, image });
-            if (result && result.id) {
-                this.state.feedIdByUrl = { ...this.state.feedIdByUrl, [feedUrl]: result.id };
-            }
-        } catch (e) { }
+            return await this.api.addSubscription({ feedUrl, title, image });
+        } catch (e) {
+            return null;
+        }
     }
 
-    async removeFeedFromServer(feedUrl) {
+    async removeFeedFromServer(feedId) {
         try {
-            await this.api.removeSubscription(feedUrl);
+            await this.api.removeSubscriptionById(feedId);
         } catch (e) { }
     }
 
@@ -70,9 +69,9 @@ export class SyncManager {
         this.app.timeline.updateFilterBadges();
     }
 
-    savePlaybackPositionToServer(episodeGuid, positionSeconds, completed = false) {
-        if (!episodeGuid) return;
-        this.state.playbackPositions[episodeGuid] = {
+    savePlaybackPositionToServer(episodeId, positionSeconds, completed = false) {
+        if (!episodeId) return;
+        this.state.playbackPositions[episodeId] = {
             position: positionSeconds,
             completed: completed ? 1 : 0,
             lastListenedAt: Math.floor(Date.now() / 1000)
@@ -80,12 +79,12 @@ export class SyncManager {
         this.storage.savePositions(this.state.playbackPositions);
         this.app.timeline.renderContinueShelf();
         this.app.timeline.updateFilterBadges();
-        this.savePlaybackPositionToServerAsync(episodeGuid, positionSeconds, completed);
+        this.savePlaybackPositionToServerAsync(episodeId, positionSeconds, completed);
     }
 
-    async savePlaybackPositionToServerAsync(episodeGuid, positionSeconds, completed = false) {
+    async savePlaybackPositionToServerAsync(episodeId, positionSeconds, completed = false) {
         try {
-            await this.api.savePosition(episodeGuid, positionSeconds, completed);
+            await this.api.savePosition(episodeId, positionSeconds, completed);
         } catch (e) { }
     }
 }

@@ -81,8 +81,9 @@ components:
     PlaybackPosition:
       type: object
       properties:
-        episode_guid:
+        episode_id:
           type: string
+          description: Canonical episode identifier (downloads.id, prefix `dl_…`).
         position_seconds:
           type: number
         completed:
@@ -317,8 +318,9 @@ paths:
             schema:
               type: object
               properties:
-                episodeGuid:
+                episodeId:
                   type: string
+                  description: Canonical episode identifier (downloads.id).
                 positionSeconds:
                   type: number
                 completed:
@@ -339,8 +341,9 @@ paths:
             schema:
               type: object
               properties:
-                episodeGuid:
+                episodeId:
                   type: string
+                  description: Canonical episode identifier (downloads.id).
       responses:
         '200':
           description: Playback position removed
@@ -458,8 +461,9 @@ paths:
             schema:
               type: object
               properties:
-                episodeGuid:
+                episodeId:
                   type: string
+                  description: Canonical episode identifier (downloads.id). Stored as the download's episode_guid anchor.
                 title:
                   type: string
                 audioUrl:
@@ -489,8 +493,9 @@ paths:
             schema:
               type: object
               properties:
-                episodeGuid:
+                episodeId:
                   type: string
+                  description: Canonical episode identifier (downloads.id).
       responses:
         '200':
           description: Download removed

@@ -116,7 +116,7 @@ Timestamps are Unix epoch seconds (`BIGINT`), matching the app code directly. Se
 - `users` — id, email (unique), created_at
 - `auth_tokens` — token_hash (unique), user_id, expires_at, used, created_at
 - `subscriptions` — id, user_id, feed_url, title, artwork, created_at (unique on user_id + feed_url)
-- `playback_state` — id, user_id, episode_guid, position_seconds, completed, last_listened_at (unique on user_id + episode_guid)
+- `playback_state` — id, user_id, episode_id, position_seconds, completed, last_listened_at, episode_guid (optional, legacy reference); unique on user_id + episode_id; FK → downloads(id)
 - `downloads` — server-side offline episodes (id, user_id, episode_guid, file_path, status, ...)
 
 ## Local Development

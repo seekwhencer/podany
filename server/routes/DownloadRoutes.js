@@ -46,11 +46,13 @@ export class DownloadsRoutes {
 
     router.post('/', async (req, res, next) => {
       try {
-        const { episodeGuid, title, audioUrl } = req.body ?? {};
-        if (!isString(episodeGuid)) {
-          return json(res, 400, { error: 'episodeGuid is required.' });
+        const body = req.body ?? {};
+        const episodeId = body.episodeId;
+        const { title, audioUrl } = body;
+        if (!isString(episodeId)) {
+          return json(res, 400, { error: 'episodeId is required.' });
         }
-        const record = await this.downloads.register({ userId: req.user.id, episodeGuid, title, audioUrl });
+        const record = await this.downloads.register({ userId: req.user.id, episodeGuid: episodeId, title, audioUrl });
         return json(res, 200, { success: true, download: record });
       } catch (err) {
         return next(err);
@@ -72,11 +74,12 @@ export class DownloadsRoutes {
 
     router.delete('/', async (req, res, next) => {
       try {
-        const { episodeGuid } = req.body ?? {};
-        if (!isString(episodeGuid)) {
-          return json(res, 400, { error: 'episodeGuid is required.' });
+        const body = req.body ?? {};
+        const episodeId = body.episodeId;
+        if (!isString(episodeId)) {
+          return json(res, 400, { error: 'episodeId is required.' });
         }
-        const result = await this.downloads.remove(req.user.id, episodeGuid);
+        const result = await this.downloads.remove(req.user.id, episodeId);
         return json(res, 200, result);
       } catch (err) {
         return next(err);

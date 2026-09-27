@@ -192,7 +192,7 @@ export class PlaybackManager {
           currentPos = this.state.ytPlayer.getCurrentTime() || 0;
         }
         if (currentPos > 3) {
-          this.app.sync.savePlaybackPositionToServer(this.state.currentEpisode.guid, currentPos);
+          this.app.sync.savePlaybackPositionToServer(this.state.currentEpisode.id, currentPos);
         }
       }
     }, 8000);
@@ -315,7 +315,7 @@ export class PlaybackManager {
       this.state.ytPlayer.stopVideo();
     }
 
-    const savedPos = this.state.playbackPositions[episode.guid];
+    const savedPos = this.state.playbackPositions[episode.id];
     let startTime = 0;
     if (typeof overrideStartTime === 'number') {
       startTime = overrideStartTime;
@@ -323,15 +323,15 @@ export class PlaybackManager {
       startTime = (savedPos && savedPos.position > 1) ? savedPos.position : 0;
     }
 
-    this.state.playbackPositions[episode.guid] = {
+    this.state.playbackPositions[episode.id] = {
       position: startTime || 2,
       completed: false,
       lastListenedAt: Math.floor(Date.now() / 1000)
     };
     this.storage.savePositions(this.state.playbackPositions);
 
-    if (this.app.queue.isEpisodeQueued(episode.guid)) {
-      this.state.queue = this.state.queue.filter(q => q.guid !== episode.guid);
+    if (this.app.queue.isEpisodeQueued(episode.id)) {
+      this.state.queue = this.state.queue.filter(q => q.id !== episode.id);
       this.app.queue.saveQueue();
       this.app.queue.updateQueueUI();
     }
@@ -578,7 +578,7 @@ export class PlaybackManager {
 
     if (!nextEp && this.state.filterMode === 'continue') {
       const continueList = this.state.allEpisodes.filter(ep => {
-        const pos = this.state.playbackPositions[ep.guid];
+        const pos = this.state.playbackPositions[ep.id];
         return (!pos || !pos.completed) && (pos && pos.position > 2);
       });
       const idx = continueList.findIndex(e => e.guid === currentGuid);
@@ -612,8 +612,8 @@ export class PlaybackManager {
       this.app.timeline.processAndSortEpisodes();
       this.app.timeline.renderTimeline();
       this.app.timeline.renderContinueShelf();
-      if (this.state.activeFeedDetailUrl) {
-        this.app.feeds.renderFeedDetail(this.state.activeFeedDetailUrl);
+      if (this.state.activeFeedDetailId) {
+        this.app.feeds.renderFeedDetail(this.state.activeFeedDetailId);
       }
     } else {
       this.state.playbackStatus = 'idle';
@@ -623,7 +623,7 @@ export class PlaybackManager {
 
   onEpisodeEnded() {
     if (this.state.currentEpisode) {
-      this.app.sync.savePlaybackPositionToServer(this.state.currentEpisode.guid, 0, true);
+      this.app.sync.savePlaybackPositionToServer(this.state.currentEpisode.id, 0, true);
     }
 
     if (this.state.sleepTimer.active) {
@@ -648,9 +648,9 @@ export class PlaybackManager {
     if (!this.state.currentEpisode) return;
     const curEp = this.state.currentEpisode;
     if (markCompleted) {
-      this.app.sync.savePlaybackPositionToServer(curEp.guid, 0, true);
-      if (this.app.queue.isEpisodeQueued(curEp.guid)) {
-        this.app.queue.removeFromQueue(curEp.guid);
+      this.app.sync.savePlaybackPositionToServer(curEp.id, 0, true);
+      if (this.app.queue.isEpisodeQueued(curEp.id)) {
+        this.app.queue.removeFromQueue(curEp.id);
       }
     } else {
       let curPos = 0;
@@ -660,7 +660,7 @@ export class PlaybackManager {
         curPos = this.state.ytPlayer.getCurrentTime() || 0;
       }
       if (curPos > 2) {
-        this.app.sync.savePlaybackPositionToServer(curEp.guid, curPos, false);
+        this.app.sync.savePlaybackPositionToServer(curEp.id, curPos, false);
       }
     }
     this.app.timeline.renderContinueShelf();

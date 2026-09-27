@@ -65,9 +65,9 @@ class InMemoryDownloads {
     }
     return [];
   }
-  async remove(userId, episodeGuid) {
+  async remove(userId, episodeId) {
     const before = this.rows.length;
-    this.rows = this.rows.filter((r) => !(r.user_id === userId && r.episode_guid === episodeGuid));
+    this.rows = this.rows.filter((r) => !(r.user_id === userId && r.id === episodeId));
     return { affectedRows: before - this.rows.length };
   }
   async deleteById(id) {
@@ -207,8 +207,9 @@ test('remove deletes the row and the stored file', async () => {
   });
   assert.ok(done.filename);
 
-  const result = await service.remove('u1', 'ep-1');
+  const result = await service.remove('u1', record.id);
   assert.equal(result.success, true);
+  assert.equal(result.removed, record.id);
   assert.equal(downloads.rows.length, 0);
   await assert.rejects(() => fs.access(path.join(storageDir, done.filename)));
 });
@@ -318,7 +319,7 @@ test('register emits image and thumbnail events when artwork is generated', asyn
   });
   service.fetchImpl = async () => ({ ok: true, status: 200, body: makeBody([]) });
 
-  await service.register({
+  const record = await service.register({
     userId: 'u1',
     episodeGuid: 'ep-img',
     title: 'Art',
@@ -332,7 +333,7 @@ test('register emits image and thumbnail events when artwork is generated', asyn
 
   const img = emitter.events.find((e) => e.type === 'image:completed');
   assert.equal(img.userId, 'u1');
-  assert.equal(img.payload.episodeGuid, 'ep-img');
+  assert.equal(img.payload.episodeId, record.id);
   assert.equal(img.payload.image, 'abc123');
   assert.equal(img.payload.artworkUrl, '/images/abc123-full.jpg');
 
@@ -351,7 +352,7 @@ test('startDownload emits download:completed on success', async () => {
 
   const completed = emitter.events.find((e) => e.type === 'download:completed');
   assert.equal(completed.userId, 'u1');
-  assert.equal(completed.payload.episodeGuid, 'ep-1');
+  assert.equal(completed.payload.episodeId, record.id);
   assert.equal(completed.payload.filename, `${record.id}.mp3`);
   assert.ok(completed.payload.fileSize >= 4);
 });
@@ -421,7 +422,7 @@ test('startDownload emits download:progress while streaming when content-length 
 
   const progress = emitter.events.filter((e) => e.type === 'download:progress');
   assert.ok(progress.length >= 1);
-  assert.ok(progress.every((p) => p.payload.episodeGuid === 'ep-1'));
+  assert.ok(progress.every((p) => p.payload.episodeId === record.id));
   assert.ok(progress.every((p) => p.payload.progress <= 99));
   assert.ok(progress.some((p) => p.payload.progress === 99));
 });

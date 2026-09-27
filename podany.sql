@@ -79,13 +79,15 @@ DROP TABLE IF EXISTS `playback_state`;
 CREATE TABLE IF NOT EXISTS `playback_state` (
   `id` varchar(64) NOT NULL,
   `user_id` varchar(64) NOT NULL,
-  `episode_guid` text NOT NULL,
+  `episode_id` varchar(64) NOT NULL,
   `position_seconds` double NOT NULL DEFAULT 0,
   `completed` tinyint(4) NOT NULL DEFAULT 0,
   `last_listened_at` bigint(20) UNSIGNED NOT NULL DEFAULT unix_timestamp(),
+  `episode_guid` text DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_playback_state_user_episode` (`user_id`,`episode_guid`) USING HASH,
-  KEY `idx_playback_state_user` (`user_id`)
+  UNIQUE KEY `uniq_playback_state_user_episode` (`user_id`,`episode_id`) USING HASH,
+  KEY `idx_playback_state_user` (`user_id`),
+  KEY `idx_playback_state_episode` (`episode_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 -- --------------------------------------------------------
@@ -149,7 +151,8 @@ ALTER TABLE `downloads`
 -- Constraints der Tabelle `playback_state`
 --
 ALTER TABLE `playback_state`
-  ADD CONSTRAINT `playback_state_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `playback_state_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `playback_state_ibfk_2` FOREIGN KEY (`episode_id`) REFERENCES `downloads` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints der Tabelle `subscriptions`

@@ -4,11 +4,12 @@ import { Downloads } from '../models/Downloads.js';
 import { isValidExternalUrl } from '../utils/url.js';
 import { ImageService } from './imageService.js';
 import {
-  EVENT_IMAGE_COMPLETED,
-  EVENT_THUMBNAIL_READY,
-  EVENT_DOWNLOAD_COMPLETED,
-  EVENT_DOWNLOAD_FAILED,
-  EVENT_DOWNLOAD_PROGRESS
+    EVENT_IMAGE_COMPLETED,
+    EVENT_THUMBNAIL_READY,
+    EVENT_DOWNLOAD_COMPLETED,
+    EVENT_DOWNLOAD_FAILED,
+    EVENT_DOWNLOAD_PROGRESS,
+    EVENT_DOWNLOAD_ALL_FROM_SUBSCRIPTION_COMPLETED
 } from '../live/protocol.js';
 
 const CONTENT_TYPES = {
@@ -39,6 +40,29 @@ export class DownloadsService {
         this.liveEmitter = deps.liveEmitter ?? null;
         this.queue = [];
         this.activeCount = 0;
+        this.pendingBySubscription = new Map();
+    }
+
+    _pendingKey(userId, subscriptionId) {
+        return `${userId}::${subscriptionId}`;
+    }
+
+    _pendingInc(userId, subscriptionId) {
+        if (!subscriptionId) return;
+        const key = this._pendingKey(userId, subscriptionId);
+        this.pendingBySubscription.set(key, (this.pendingBySubscription.get(key) || 0) + 1);
+    }
+
+    _pendingDec(userId, subscriptionId) {
+        if (!subscriptionId) return;
+        const key = this._pendingKey(userId, subscriptionId);
+        const remaining = (this.pendingBySubscription.get(key) || 0) - 1;
+        if (remaining <= 0) {
+            this.pendingBySubscription.delete(key);
+            this._emit(EVENT_DOWNLOAD_ALL_FROM_SUBSCRIPTION_COMPLETED, { id: subscriptionId }, userId);
+        } else {
+            this.pendingBySubscription.set(key, remaining);
+        }
     }
 
     _emit(type, payload, userId) {
@@ -78,8 +102,10 @@ export class DownloadsService {
         while (this.activeCount < this.concurrency && this.queue.length > 0) {
             const record = this.queue.shift();
             this.activeCount += 1;
+            this._pendingInc(record.user_id, record.subscription_id);
             this.startDownload(record).finally(() => {
                 this.activeCount -= 1;
+                this._pendingDec(record.user_id, record.subscription_id);
                 this._processQueue();
             });
         }
@@ -101,6 +127,7 @@ export class DownloadsService {
         if (audioUrl && !isValidExternalUrl(audioUrl)) {
             throw new Error('Invalid or disallowed audio URL.');
         }
+        const id = this.downloads.generateId('dl_');
         let image = '';
         if (artwork) {
             try {
@@ -110,10 +137,9 @@ export class DownloadsService {
             }
         }
         if (image) {
-            this._emit(EVENT_IMAGE_COMPLETED, { episodeGuid, image, artworkUrl: `/images/${image}-full.jpg` }, userId);
-            this._emit(EVENT_THUMBNAIL_READY, { episodeGuid, image, sizes: ['thumb', 'mid', 'full'] }, userId);
+            this._emit(EVENT_IMAGE_COMPLETED, { episodeId: id, image, artworkUrl: `/images/${image}-full.jpg` }, userId);
+            this._emit(EVENT_THUMBNAIL_READY, { episodeId: id, image, sizes: ['thumb', 'mid', 'full'] }, userId);
         }
-        const id = this.downloads.generateId('dl_');
         await this.downloads.create({
             id,
             userId,
@@ -145,11 +171,16 @@ export class DownloadsService {
         const audioUrl = record.audioUrl || record.audio_url;
         const dlEvent = {
             id: record.id,
-            episodeGuid: record.episode_guid,
+            episodeId: record.id,
             subscriptionId: record.subscription_id,
             title: record.title,
             duration: record.duration
         };
+        const wsEvent = {
+            id: record.id,
+            episodeId: record.id,
+            subscriptionId: record.subscription_id
+        }
         const emitFailed = (error) => this._emit(EVENT_DOWNLOAD_FAILED, { ...dlEvent, error }, record.user_id);
         if (!audioUrl || !isValidExternalUrl(audioUrl)) {
             await this.downloads.update(record.id, { status: 'failed', error: 'Invalid or disallowed audio URL.' });
@@ -178,11 +209,13 @@ export class DownloadsService {
             const totalBytes = this._contentLength(response);
             const sink = createWriteStream(filePath);
             try {
+                this._emit(EVENT_DOWNLOAD_PROGRESS, wsEvent, record.user_id);
                 for await (const chunk of response.body) {
                     sink.write(chunk);
                     size += Buffer.byteLength(chunk);
+
                     if (Number.isFinite(totalBytes) && totalBytes > 0) {
-                        this._emit(EVENT_DOWNLOAD_PROGRESS, { ...dlEvent, progress: Math.min(99, Math.round((size / totalBytes) * 100)) }, record.user_id);
+                        //this._emit(EVENT_DOWNLOAD_PROGRESS, { ...dlEvent, progress: Math.min(99, Math.round((size / totalBytes) * 100)) }, record.user_id);
                     }
                 }
             } finally {
@@ -260,13 +293,13 @@ export class DownloadsService {
         createReadStream(filePath).pipe(res);
     }
 
-    async remove(userId, episodeGuid) {
-        const record = await this.downloads.findByEpisode(userId, episodeGuid);
-        await this.downloads.remove(userId, episodeGuid);
+    async remove(userId, episodeId) {
+        const record = await this.downloads.findByIdAndUser(userId, episodeId);
+        await this.downloads.remove(userId, episodeId);
         if (record && record.filename) {
             await this.deleteFile(this._pathForFilename(record.filename));
         }
-        return { success: true, removed: episodeGuid };
+        return { success: true, removed: episodeId };
     }
 
     async deleteById(id) {

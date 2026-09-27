@@ -141,8 +141,8 @@ Nebenwirkungen des Rollouts (für Schritte 3/5/7 beachten): THEME-Reset auf
   `/api/playback/positions`), `savePosition()` (POST `/api/playback/positions`).
 - **DOWNLOADS** neu ergänzt (`public/js/api.js`):
   - `listDownloads()` → GET `/api/downloads` → `{ downloads }[]`
-  - `registerDownload({ episodeGuid, title, audioUrl })` → POST `/api/downloads`
-  - `removeDownload(episodeGuid)` → DELETE `/api/downloads`
+  - `registerDownload({ episodeId, title, audioUrl })` → POST `/api/downloads`
+  - `removeDownload(episodeId)` → DELETE `/api/downloads`
   Endpunkte matchen exakt `server/routes/DownloadRoutes.js`.
 - Optionale Full-Load-Hilfe `loadAll()` ergänzt: bündelt die drei persistenten
   GETs (`listSubscriptions` + `listPositions` + `listDownloads`) in einem Call
@@ -369,9 +369,9 @@ erneut ausführen.**
   `Config.legacyKey()` entfallen. Einzige verbleibende `localStorage`-Referenz im
   Code ist ein Kommentar (`storage.js:5`).
 - **Server-Seite ergänzt:** `server/routes/PlaybackRoutes.js` — DELETE `/positions`
-  (Validierung `episodeGuid` wie POST); `server/services/playbackService.js` —
-  `removePosition(userId, episodeGuid)` (nutzt bestehendes `PlaybackState.remove`).
-- **Frontend-API:** `api.js` — `removePosition(episodeGuid)` ergänzt.
+  (Validierung `episodeId` wie POST); `server/services/playbackService.js` —
+  `removePosition(userId, episodeId)` (nutzt bestehendes `PlaybackState.remove`).
+- **Frontend-API:** `api.js` — `removePosition(episodeId)` ergänzt.
 - **Build-Validierung:** `npm run build` (esbuild) in dieser Sandbox nicht
   ausführbar (esbuild-CLI = nativer ELF-Binary, kompatibel mit dem hier
   verfügbaren Node nicht). Änderungen manuell verifiziert (Aufruf-Konsistenz,

@@ -187,60 +187,80 @@ export class LiveClient {
         if (!msg || typeof msg.type !== 'string') return;
 
         const payload = msg.payload && typeof msg.payload === 'object' ? msg.payload : {};
+
+        //console.log('>>> WS', msg);
+
+        //return;
+
         switch (msg.type) {
+
             case 'connection:hello':
                 this._connected = true;
                 break;
+
             case 'ping':
                 this._send('pong');
                 break;
+
             case 'download:progress':
             case 'download:completed':
             case 'download:failed':
                 this._handleDownload(payload);
                 break;
+
             case 'image:completed':
             case 'thumbnail:ready':
                 this._handleArtwork(payload);
                 break;
+
             case 'subscription:added':
             case 'subscription:removed':
                 this._handleSubscription(payload);
                 break;
+
+            case 'download:all-subscription-downloads-completed':
+                this._handleAllSubscriptionDownloadsComplete(payload);
+                break;
+
             case 'playback:position-updated':
                 this._handlePlayback(payload);
                 break;
             case 'session:closed':
                 this._handleSessionClosed(payload);
                 break;
+
             case 'error':
                 console.log('[live] server error', payload);
                 break;
+
             default:
                 break;
+
         }
     }
 
     // ── Event dispatch to managers ──────────────────────────────────────────
 
     _handleDownload(payload) {
-        const guid = payload.episodeGuid;
-        if (!guid) return;
+        return;
+
+        const episodeId = payload.episodeId;
+        if (!episodeId) return;
         if (!this.state.downloadStatus) this.state.downloadStatus = {};
         const status = payload.status || (payload.progress !== undefined ? 'progress' : 'completed');
-        this.state.downloadStatus[guid] = {
+        this.state.downloadStatus[episodeId] = {
             status,
             progress: typeof payload.progress === 'number' ? payload.progress : undefined,
             title: payload.title,
             at: Date.now()
         };
 
-        const ep = (this.state.allEpisodes || []).find(e => e && e.guid === guid);
+        const ep = (this.state.allEpisodes || []).find(e => e && String(e.id) === String(episodeId));
         const card = ep && ep.id ? document.querySelector(`.episode-card[data-id="${CSS.escape(String(ep.id))}"]`) : null;
         if (!card) return;
         const badge = card.querySelector('.ep-download-badge');
         if (!badge) return;
-        const data = this.state.downloadStatus[guid];
+        const data = this.state.downloadStatus[episodeId];
         badge.dataset.status = data.status;
         if (data.status === 'completed') {
             badge.textContent = 'Downloaded';
@@ -252,18 +272,20 @@ export class LiveClient {
     }
 
     _handleArtwork(payload) {
-        const guid = payload.episodeGuid;
+        return;
+
+        const episodeId = payload.episodeId;
         const image = payload.image;
-        if (!guid || !image) return;
+        if (!episodeId || !image) return;
 
         const episodes = this.state.allEpisodes;
         if (Array.isArray(episodes)) {
             episodes.forEach(ep => {
-                if (ep && ep.guid === guid && ep.image !== image) ep.image = image;
+                if (ep && String(ep.id) === String(episodeId) && ep.image !== image) ep.image = image;
             });
         }
 
-        const targetEp = (this.state.allEpisodes || []).find(e => e && e.guid === guid);
+        const targetEp = (this.state.allEpisodes || []).find(e => e && String(e.id) === String(episodeId));
         const targetId = targetEp ? String(targetEp.id) : null;
         const cards = document.querySelectorAll('.episode-card');
         cards.forEach(card => {
@@ -276,7 +298,7 @@ export class LiveClient {
         });
 
         const cur = this.state.currentEpisode;
-        if (cur && cur.guid === guid && this.elements) {
+        if (cur && String(cur.id) === String(episodeId) && this.elements) {
             const playerArt = this.elements.playerArtwork;
             if (playerArt) playerArt.src = artworkUrl(image, 'full');
             const miniArt = this.elements.miniArtwork;
@@ -293,10 +315,11 @@ export class LiveClient {
 
     _handlePlayback(payload) {
         return;
-        const guid = payload.episodeGuid;
-        if (guid && this.state.playbackPositions) {
-            const existing = this.state.playbackPositions[guid];
-            this.state.playbackPositions[guid] = {
+
+        const episodeId = payload.episodeId;
+        if (episodeId && this.state.playbackPositions) {
+            const existing = this.state.playbackPositions[episodeId];
+            this.state.playbackPositions[episodeId] = {
                 position: typeof payload.positionSeconds === 'number'
                     ? payload.positionSeconds
                     : (existing ? existing.position : 0),
@@ -328,6 +351,18 @@ export class LiveClient {
         }
         if (this.auth && typeof this.auth.handleLogout === 'function') {
             this.auth.handleLogout();
+        }
+    }
+
+    async _handleAllSubscriptionDownloadsComplete(payload) {
+        const ids = Array.isArray(payload.id) ? payload.id : (payload.id != null ? [payload.id] : []);
+        const feeds = this.app.feeds;
+        if (!feeds) return;
+        
+        for (const id of ids) {
+            if (typeof feeds.refreshSingleFeed === 'function') {
+                await feeds.refreshSingleFeed(id);
+            }
         }
     }
 }

@@ -79,10 +79,11 @@ export class AuthManager {
                 this.storage.saveSessionToken(me.sessionToken);
             }
             this.state.userEmail = me.user.email || '';
-            // syncFeedsWithServer populates feedIdByUrl (subscription id per feed URL),
-            // which refreshAllFeeds needs to read episodes from the DB by id instead of
-            // falling back to URL-based RSS preview. RSS-fetched episodes carry no
-            // `image` hash, so skipping this yields placeholder artwork after a reload.
+            // syncFeedsWithServer populates feedUrlById (subscription id -> feed URL)
+            // and sets this.state.feeds to subscription ids, which refreshAllFeeds
+            // needs to read episodes from the DB by id instead of falling back to
+            // URL-based RSS preview. RSS-fetched episodes carry no `image` hash, so
+            // skipping this yields placeholder artwork after a reload.
             this.updateSyncStatusUI('Authenticated via Session Cookie (Server Synced)', this.state.userEmail, true);
             await this.app.ensureLiveConnection();
             await this.app.sync.syncFeedsWithServer();

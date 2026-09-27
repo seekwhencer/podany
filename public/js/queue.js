@@ -21,13 +21,13 @@ export class QueueManager {
     this.storage.saveQueue(this.state.queue);
   }
 
-  isEpisodeQueued(guid) {
+  isEpisodeQueued(id) {
     if (!Array.isArray(this.state.queue)) return false;
-    return this.state.queue.some(ep => ep.guid === guid);
+    return this.state.queue.some(ep => String(ep.id) === String(id));
   }
 
   toggleEpisodeQueue(episode) {
-    const idx = this.state.queue.findIndex(ep => ep.guid === episode.guid);
+    const idx = this.state.queue.findIndex(ep => String(ep.id) === String(episode.id));
     if (idx !== -1) {
       this.state.queue.splice(idx, 1);
     } else {
@@ -37,8 +37,8 @@ export class QueueManager {
     this.updateQueueUI();
   }
 
-  removeFromQueue(guid) {
-    this.state.queue = this.state.queue.filter(ep => ep.guid !== guid);
+  removeFromQueue(id) {
+    this.state.queue = this.state.queue.filter(ep => String(ep.id) !== String(id));
     this.saveQueue();
     this.updateQueueUI();
   }
@@ -231,13 +231,13 @@ export class QueueManager {
 
       row.querySelector('.btn-queue-item-play').addEventListener('click', (e) => {
         e.stopPropagation();
-        this.removeFromQueue(ep.guid);
+        this.removeFromQueue(ep.id);
         this.app.playback.playEpisode(ep);
       });
 
       row.querySelector('.btn-queue-item-remove').addEventListener('click', (e) => {
         e.stopPropagation();
-        this.removeFromQueue(ep.guid);
+        this.removeFromQueue(ep.id);
       });
 
       this.elements.queueItemsContainer.appendChild(row);

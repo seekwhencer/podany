@@ -37,6 +37,10 @@ export class Subscription extends BaseModel {
   async remove(userId, feedUrl) {
     return this.execute('DELETE FROM subscriptions WHERE user_id = ? AND feed_url = ?', [userId, feedUrl]);
   }
+
+  async removeById(userId, id) {
+    return this.execute('DELETE FROM subscriptions WHERE user_id = ? AND id = ?', [userId, id]);
+  }
 }
 
 export default Subscription;

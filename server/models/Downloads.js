@@ -73,8 +73,8 @@ export class Downloads extends BaseModel {
     return this.find('SELECT * FROM downloads WHERE status = ? ORDER BY created_at ASC', [status]);
   }
 
-  async remove(userId, episodeGuid) {
-    return this.execute('DELETE FROM downloads WHERE user_id = ? AND episode_guid = ?', [userId, episodeGuid]);
+  async remove(userId, episodeId) {
+    return this.execute('DELETE FROM downloads WHERE user_id = ? AND id = ?', [userId, episodeId]);
   }
 
   async deleteById(id) {

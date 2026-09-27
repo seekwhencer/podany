@@ -43,8 +43,8 @@ const fakeSync = {
   async addSubscription(args) { this.calls.push(['addSubscription', args]); return { success: true, feedUrl: args.feedUrl, id: 'sub_test' }; },
   async removeSubscription(userId, feedUrl) { this.calls.push(['removeSubscription', userId, feedUrl]); return { success: true, removed: feedUrl }; },
   async listPositions(userId) { this.calls.push(['listPositions', userId]); return { positions: {} }; },
-  async savePosition(args) { this.calls.push(['savePosition', args]); return { success: true, episodeGuid: args.episodeGuid }; },
-  async removePosition(userId, episodeGuid) { this.calls.push(['removePosition', userId, episodeGuid]); return { success: true, episodeGuid }; }
+  async savePosition(args) { this.calls.push(['savePosition', args]); return { success: true, episodeId: args.episodeId }; },
+  async removePosition(userId, episodeId) { this.calls.push(['removePosition', userId, episodeId]); return { success: true, episodeId }; }
 };
 
 const fakeFeed = {
@@ -444,14 +444,14 @@ test('downloads require authentication on the list endpoint', async (t) => {
   assert.equal(res.status, 401);
 });
 
-test('downloads register requires episodeGuid and scopes to the user', async (t) => {
+test('downloads register requires episodeId and scopes to the user', async (t) => {
   const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, audioProxy: fakeAudioProxy, downloads: fakeDownloads } });
   fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
   t.after(() => server.close());
   const missing = await request(server, 'POST', '/api/downloads', { headers: { 'x-session-token': 't' }, body: {} });
   assert.equal(missing.status, 400);
 
-  const ok = await request(server, 'POST', '/api/downloads', { headers: { 'x-session-token': 't' }, body: { episodeGuid: 'ep_1', audioUrl: 'https://audio.example.com/x.mp3' } });
+  const ok = await request(server, 'POST', '/api/downloads', { headers: { 'x-session-token': 't' }, body: { episodeId: 'ep_1', audioUrl: 'https://audio.example.com/x.mp3' } });
   assert.equal(ok.status, 200);
   assert.equal(ok.body.download.id, 'dl_1');
   assert.equal(ok.body.download.user_id, 'usr_1');
@@ -607,12 +607,12 @@ test('playback save position emits playback:position-updated via the live emitte
   fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
   t.after(() => server.close());
 
-  await request(server, 'POST', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeGuid: 'ep_9', positionSeconds: 42, completed: true } });
+  await request(server, 'POST', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeId: 'ep_9', positionSeconds: 42, completed: true } });
 
   const updated = emitter.events.find((e) => e.type === 'playback:position-updated');
   assert.ok(updated);
   assert.equal(updated.userId, 'usr_1');
-  assert.equal(updated.payload.episodeGuid, 'ep_9');
+  assert.equal(updated.payload.episodeId, 'ep_9');
   assert.equal(updated.payload.positionSeconds, 42);
   assert.equal(updated.payload.completed, true);
 });
@@ -623,12 +623,12 @@ test('playback delete position emits playback:position-updated with completed fa
   fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
   t.after(() => server.close());
 
-  await request(server, 'DELETE', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeGuid: 'ep_9' } });
+  await request(server, 'DELETE', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeId: 'ep_9' } });
 
   const updated = emitter.events.find((e) => e.type === 'playback:position-updated');
   assert.ok(updated);
   assert.equal(updated.userId, 'usr_1');
-  assert.equal(updated.payload.episodeGuid, 'ep_9');
+  assert.equal(updated.payload.episodeId, 'ep_9');
   assert.equal(updated.payload.completed, false);
   assert.equal(updated.payload.positionSeconds, null);
 });
@@ -654,4 +654,55 @@ test('live events are no-ops when no emitter is wired', async (t) => {
 
   const res = await request(server, 'POST', '/api/subscription', { headers: { 'x-session-token': 't' }, body: { feedUrl: 'https://example.com/rss' } });
   assert.equal(res.status, 200);
+});
+
+test('playback save position accepts episodeId and emits it', async (t) => {
+  const emitter = makeRecordingEmitter();
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: {}, liveEmitter: emitter });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  await request(server, 'POST', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeId: 'dl_x', positionSeconds: 42, completed: true } });
+
+  const updated = emitter.events.find((e) => e.type === 'playback:position-updated');
+  assert.ok(updated);
+  assert.equal(updated.payload.episodeId, 'dl_x');
+});
+
+test('playback save position requires episodeId and rejects episodeGuid-only bodies', async (t) => {
+  const calls = [];
+  const localSync = {
+    async savePosition(args) { calls.push(['savePosition', args]); return { success: true, episodeId: args.episodeId }; },
+    async removePosition(userId, episodeId) { calls.push(['removePosition', userId, episodeId]); return { success: true, episodeId }; },
+    async listPositions(userId) { calls.push(['listPositions', userId]); return { positions: {} }; }
+  };
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: localSync, feed: {} });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'POST', '/api/playback/positions', { headers: { 'x-session-token': 't' }, body: { episodeGuid: 'ep_7', positionSeconds: 5 } });
+  assert.equal(res.status, 400);
+  assert.equal(res.body.error, 'episodeId is required.');
+  assert.equal(calls.length, 0);
+});
+
+test('downloads register accepts episodeId and scopes to the user', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, audioProxy: fakeAudioProxy, downloads: fakeDownloads } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const ok = await request(server, 'POST', '/api/downloads', { headers: { 'x-session-token': 't' }, body: { episodeId: 'ep_1', audioUrl: 'https://audio.example.com/x.mp3' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.download.id, 'dl_1');
+  assert.equal(ok.body.download.user_id, 'usr_1');
+});
+
+test('downloads delete by episodeId returns the removed id', async (t) => {
+  const server = buildServer({ auth: fakeAuth, sessions: new Map(), sync: fakeSync, feed: { feed: fakeFeed, audioProxy: fakeAudioProxy, downloads: fakeDownloads } });
+  fakeAuth.resolved = { 't': { id: 'usr_1', email: 'x@example.com' } };
+  t.after(() => server.close());
+
+  const res = await request(server, 'DELETE', '/api/downloads', { headers: { 'x-session-token': 't' }, body: { episodeId: 'dl_1' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { success: true, removed: 'dl_1' });
 });

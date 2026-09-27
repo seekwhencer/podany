@@ -27,7 +27,7 @@ export class FeedsManager {
   updateDockVisibility() {
     if (!this.elements.bottomActionDock) return;
     const isTimelineActive = this.elements.tabTimeline && this.elements.tabTimeline.classList.contains('active');
-    const isDetailActive = !!this.state.activeFeedDetailUrl;
+    const isDetailActive = !!this.state.activeFeedDetailId;
     const hasFeeds = this.state.feeds && this.state.feeds.length > 0;
 
     if (isTimelineActive && !isDetailActive && hasFeeds) {
@@ -79,7 +79,7 @@ export class FeedsManager {
     const incomingEpisodes = [];
     const updatedMetadata = { ...this.state.feedMetadata };
 
-    const fetchPromises = this.state.feeds.map(url => this.fetchSingleFeed(url, incomingEpisodes, updatedMetadata));
+    const fetchPromises = this.state.feeds.map(id => this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata, true));
     await Promise.allSettled(fetchPromises);
 
     if (incomingEpisodes.length > 0) {
@@ -88,7 +88,7 @@ export class FeedsManager {
         if (ep && ep.guid) epMap.set(ep.guid, ep);
       });
       this.state.allEpisodes.forEach(ep => {
-        if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.feedUrl)) {
+        if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.subscriptionId)) {
           epMap.set(ep.guid, ep);
         }
       });
@@ -103,16 +103,40 @@ export class FeedsManager {
     this.renderFeedsGrid();
   }
 
-  async fetchSingleFeed(url, incomingEpisodes, updatedMetadata) {
+  async refreshSingleFeed(id) {
+    const incomingEpisodes = [];
+    const updatedMetadata = { ...this.state.feedMetadata };
+
+    await this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata, true);
+
+    if (incomingEpisodes.length > 0) {
+      const epMap = new Map();
+      incomingEpisodes.forEach(ep => {
+        if (ep && ep.guid) epMap.set(ep.guid, ep);
+      });
+      this.state.allEpisodes.forEach(ep => {
+        if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.subscriptionId)) {
+          epMap.set(ep.guid, ep);
+        }
+      });
+      this.state.allEpisodes = Array.from(epMap.values());
+      this.state.feedMetadata = updatedMetadata;
+      this.storage.saveCache(this.state.allEpisodes, this.state.feedMetadata, this.config.maxCacheEpisodes);
+    }
+
+    this.state.downloadingFeeds.delete(id);
+    this.updateFeedCard(id);
+  }
+
+  async fetchSingleFeed(target, incomingEpisodes, updatedMetadata, isId = false) {
     try {
-      const id = this.state.feedIdByUrl ? this.state.feedIdByUrl[url] : null;
-      // Prefer DB read by subscription id. Fall back to URL fetch only when no id
-      // is known yet (freshly added feed, before saveFeedToServer returned its id).
-      const feedData = id ? await this.api.loadFeedById(id) : await this.api.fetchFeed(url);
+      // Subscribed feeds are read by DB subscription id; preview of an
+      // unsubscribed feed still fetches the RSS source by URL.
+      const feedData = isId ? await this.api.loadFeedById(target) : await this.api.fetchFeed(target);
 
       if (feedData && feedData.error) {
-        if (!updatedMetadata[url]) {
-          updatedMetadata[url] = {
+        if (!updatedMetadata[target]) {
+          updatedMetadata[target] = {
             title: feedData.title || 'Unavailable Feed',
             artwork: '',
             episodesCount: 0,
@@ -127,7 +151,7 @@ export class FeedsManager {
         return null;
       }
 
-      updatedMetadata[url] = {
+      updatedMetadata[target] = {
         title: feedMeta.title,
         artwork: feedMeta.artwork,
         image: feedMeta.image,
@@ -141,8 +165,8 @@ export class FeedsManager {
 
       return feedData;
     } catch (err) {
-      if (!updatedMetadata[url]) {
-        updatedMetadata[url] = {
+      if (!updatedMetadata[target]) {
+        updatedMetadata[target] = {
           title: 'Error Loading Feed',
           artwork: '',
           episodesCount: 0,
@@ -214,7 +238,8 @@ export class FeedsManager {
     s.renderedCount += nextBatch.length;
 
     nextBatch.forEach(item => {
-      const isSubbed = this.state.feeds.includes(item.feedUrl);
+      const candidateId = this.state.feedUrlById[item.feedUrl];
+      const isSubbed = candidateId && this.state.feeds.includes(candidateId);
       const relDate = item.releaseDate ? formatCompactDate(item.releaseDate) : '';
 
       const card = document.createElement('div');
@@ -269,26 +294,40 @@ export class FeedsManager {
 
   // ── Feed management ─────────────────────────────────────────────────────
 
-  addFeed(url, title = '', artwork = '') {
+  async addFeed(url, title = '', artwork = '') {
     const cleanUrl = url.trim();
     if (!cleanUrl) return;
 
-    if (!this.state.feeds.includes(cleanUrl)) {
-      this.state.feeds.push(cleanUrl);
-      this.storage.saveFeeds(this.state.feeds);
-      this.app.sync.saveFeedToServer(cleanUrl, title, artwork);
-      this.refreshAllFeeds();
-      if (this.elements.feedUrlInput && this.elements.feedUrlInput.value.trim() === cleanUrl) {
-        this.elements.feedUrlInput.value = '';
-      }
-    } else {
+    const existingId = this.state.feedUrlById[cleanUrl];
+    if (existingId && this.state.feeds.includes(existingId)) {
       alert('This feed is already in your subscriptions.');
+      return;
+    }
+
+    const result = await this.app.sync.saveFeedToServer(cleanUrl, title, artwork);
+    const id = result && result.id;
+    if (id) {
+      this.state.feeds.push(id);
+      this.state.feedUrlById = { ...this.state.feedUrlById, [id]: cleanUrl };
+      this.state.feedMetadata[id] = {
+        title: title || 'Unknown Podcast',
+        artwork,
+        image: artwork,
+        episodesCount: 0,
+        url: cleanUrl
+      };
+      this.state.downloadingFeeds.add(id);
+      this.refreshAllFeeds();
+    }
+
+    if (this.elements.feedUrlInput && this.elements.feedUrlInput.value.trim() === cleanUrl) {
+      this.elements.feedUrlInput.value = '';
     }
   }
 
-  promptRemoveFeed(url) {
-    this.state.feedToDelete = url;
-    const meta = this.state.feedMetadata[url] || {};
+  promptRemoveFeed(feedId) {
+    this.state.feedToDelete = feedId;
+    const meta = this.state.feedMetadata[feedId] || {};
     const title = meta.title || 'this podcast';
     if (this.elements.confirmModalMsg) {
       this.elements.confirmModalMsg.textContent = `Do you want to unsubscribe from "${title}"?`;
@@ -298,9 +337,9 @@ export class FeedsManager {
     }
   }
 
-  removeFeed(url) {
-    if (this.state.activeFeedDetailUrl === url) {
-      this.state.activeFeedDetailUrl = null;
+  removeFeed(feedId) {
+    if (this.state.activeFeedDetailId === feedId) {
+      this.state.activeFeedDetailId = null;
       if (this.elements.panelFeedDetail) this.elements.panelFeedDetail.classList.remove('active');
       const feedsTab = document.getElementById('tab-feeds');
       const feedsPanel = document.getElementById('panel-feeds');
@@ -310,12 +349,12 @@ export class FeedsManager {
       if (feedsPanel) feedsPanel.classList.add('active');
     }
 
-    this.state.allEpisodes = this.state.allEpisodes.filter(ep => ep.feedUrl !== url);
-    this.state.feeds = this.state.feeds.filter(f => f !== url);
-    delete this.state.feedMetadata[url];
-    if (this.state.feedIdByUrl) delete this.state.feedIdByUrl[url];
+    this.state.allEpisodes = this.state.allEpisodes.filter(ep => ep.subscriptionId !== feedId);
+    this.state.feeds = this.state.feeds.filter(f => f !== feedId);
+    delete this.state.feedMetadata[feedId];
+    delete this.state.feedUrlById[feedId];
     this.storage.saveFeeds(this.state.feeds);
-    this.app.sync.removeFeedFromServer(url);
+    this.app.sync.removeFeedFromServer(feedId);
     this.app.timeline.processAndSortEpisodes();
     this.app.timeline.renderTimeline();
     this.renderFeedsGrid();
@@ -325,21 +364,27 @@ export class FeedsManager {
 
   importOpml(file) {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const xmlText = e.target.result;
       const parser = new DOMParser();
       const doc = parser.parseFromString(xmlText, 'text/xml');
       const outlines = doc.querySelectorAll('outline[xmlUrl], outline[xmlurl]');
 
       let addedCount = 0;
-      outlines.forEach(node => {
+      for (const node of outlines) {
         const feedUrl = node.getAttribute('xmlUrl') || node.getAttribute('xmlurl');
-        if (feedUrl && !this.state.feeds.includes(feedUrl)) {
-          this.state.feeds.push(feedUrl);
-          this.app.sync.saveFeedToServer(feedUrl, node.getAttribute('text') || '');
+        if (!feedUrl) continue;
+        const existingId = this.state.feedUrlById[feedUrl];
+        if (existingId && this.state.feeds.includes(existingId)) continue;
+
+        const result = await this.app.sync.saveFeedToServer(feedUrl, node.getAttribute('text') || '');
+        const id = result && result.id;
+        if (id) {
+          this.state.feeds.push(id);
+          this.state.feedUrlById = { ...this.state.feedUrlById, [id]: feedUrl };
           addedCount++;
         }
-      });
+      }
 
       if (addedCount > 0) {
         this.storage.saveFeeds(this.state.feeds);
@@ -355,8 +400,9 @@ export class FeedsManager {
   exportOpml() {
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<opml version="2.0">\n  <head>\n    <title>Podany Export</title>\n  </head>\n  <body>\n`;
 
-    this.state.feeds.forEach(url => {
-      const meta = this.state.feedMetadata[url] || {};
+    this.state.feeds.forEach(id => {
+      const meta = this.state.feedMetadata[id] || {};
+      const url = this.state.feedUrlById[id] || '';
       const title = meta.title ? escapeHtml(meta.title) : 'Podcast';
       xml += `    <outline type="rss" text="${title}" title="${title}" xmlUrl="${escapeHtml(url)}"/>\n`;
     });
@@ -452,8 +498,9 @@ export class FeedsManager {
     let feedsToRender = this.state.feeds;
     if (this.state.searchQuery && this.elements.tabFeeds && this.elements.tabFeeds.classList.contains('active')) {
       const q = this.state.searchQuery.toLowerCase();
-      feedsToRender = this.state.feeds.filter(url => {
-        const meta = this.state.feedMetadata[url] || {};
+      feedsToRender = this.state.feeds.filter(id => {
+        const meta = this.state.feedMetadata[id] || {};
+        const url = this.state.feedUrlById[id] || '';
         return (meta.title && meta.title.toLowerCase().includes(q)) ||
           (meta.author && meta.author.toLowerCase().includes(q)) ||
           url.toLowerCase().includes(q);
@@ -470,109 +517,133 @@ export class FeedsManager {
       return;
     }
 
-    feedsToRender.forEach(url => {
-      const meta = this.state.feedMetadata[url] || {};
-      const card = document.createElement('div');
-      card.className = 'feed-card';
-
-      const rawDesc = meta.description || '';
-      const plainDesc = rawDesc.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
-
-      const allForFeed = this.state.allEpisodes
-        .filter(e => e.feedUrl === url)
-        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-      const inProgressEps = allForFeed.filter(ep => {
-        const pos = this.state.playbackPositions[ep.guid];
-        return pos && !pos.completed && pos.position > 2;
-      });
-
-      const unplayedEps = allForFeed.filter(ep => {
-        const pos = this.state.playbackPositions[ep.guid];
-        const isProg = inProgressEps.some(p => p.guid === ep.guid);
-        return !isProg && (!pos || (!pos.completed && (!pos.position || pos.position <= 2)));
-      });
-
-      let feedEpisodes = [...inProgressEps, ...unplayedEps].slice(0, 3);
-      const hasUnplayed = feedEpisodes.length > 0;
-      if (feedEpisodes.length < 3) {
-        const existingGuids = new Set(feedEpisodes.map(e => e.guid));
-        const remaining = allForFeed.filter(e => !existingGuids.has(e.guid)).slice(0, 3 - feedEpisodes.length);
-        feedEpisodes.push(...remaining);
-      }
-
-      const widgetHeader = hasUnplayed
-        ? (inProgressEps.length > 0 ? 'Continue & up next' : 'Up next (unplayed)')
-        : 'Caught up • Latest';
-
-      let recentWidgetHtml = '';
-      if (feedEpisodes.length > 0) {
-        recentWidgetHtml = `
-          <div class="feed-recent-widget">
-            <div class="feed-recent-header">${widgetHeader}</div>
-            <div class="feed-recent-list">
-              ${feedEpisodes.map(ep => {
-                const isCurrent = this.state.currentEpisode && this.state.currentEpisode.guid === ep.guid;
-                const isEpPlaying = isCurrent && this.state.playbackStatus === 'playing';
-                const pos = this.state.playbackPositions[ep.guid];
-                const isCompleted = pos && (pos.completed === 1 || pos.completed === true);
-                const isInProgress = pos && !isCompleted && pos.position > 2;
-                let durStr = ep.duration ? formatDurationCompact(ep.duration) : '';
-                return `
-                  <div class="recent-ep-row ${isCurrent ? 'active' : ''} ${isCompleted ? 'is-played' : ''} ${isInProgress ? 'is-in-progress' : ''}" data-guid="${escapeHtml(ep.guid)}" title="${escapeHtml(ep.title)}">
-                    <button class="btn-recent-play ${isEpPlaying ? 'is-playing' : ''}" data-guid="${escapeHtml(ep.guid)}" aria-label="Play ${escapeHtml(ep.title)}">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">${isEpPlaying ? '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>' : '<polygon points="5 3 19 12 5 21 5 3"></polygon>'}</svg>
-                    </button>
-                    <span class="recent-ep-title">${escapeHtml(ep.title)}</span>
-                    ${durStr ? `<span class="recent-ep-duration">${durStr}</span>` : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      }
-
-      card.innerHTML = `
-        <div class="feed-header">
-          <img class="feed-art" src="${artworkUrl(meta.image, 'large')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
-          <div class="feed-info">
-            <h4>${escapeHtml(meta.title || url)}</h4>
-            <p>${meta.error ? `<span style="color: #ef4444;">${escapeHtml(meta.error)}</span>` : `${meta.episodesCount || feedEpisodes.length} episodes`}</p>
-          </div>
-          <button class="btn-feed-unsubscribe" title="Remove podcast" aria-label="Remove podcast">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          </button>
-        </div>
-        ${plainDesc ? `<p class="feed-card-desc">${escapeHtml(plainDesc)}</p>` : ''}
-        ${recentWidgetHtml}
-      `;
-
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-feed-unsubscribe') || e.target.closest('.recent-ep-row')) return;
-        this.openFeedDetail(url);
-      });
-
-      card.querySelector('.btn-feed-unsubscribe')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.promptRemoveFeed(url);
-      });
-
-      card.querySelectorAll('.recent-ep-row').forEach(row => {
-        const guid = row.dataset.guid;
-        const ep = feedEpisodes.find(item => item.guid === guid);
-        if (!ep) return;
-        row.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.app.playback.toggleEpisodePlayback(ep);
-        });
-      });
-
-      grid.appendChild(card);
+    feedsToRender.forEach(id => {
+      grid.appendChild(this.renderFeedCard(id));
     });
+  }
+
+  renderFeedCard(id) {
+    const meta = this.state.feedMetadata[id] || {};
+    const url = this.state.feedUrlById[id] || '';
+    const card = document.createElement('div');
+    card.className = 'feed-card';
+    card.dataset.feedId = id;
+
+    const rawDesc = meta.description || '';
+    const plainDesc = rawDesc.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+
+    const allForFeed = this.state.allEpisodes
+      .filter(e => e.subscriptionId === id)
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    const inProgressEps = allForFeed.filter(ep => {
+      const pos = this.state.playbackPositions[ep.id];
+      return pos && !pos.completed && pos.position > 2;
+    });
+
+    const unplayedEps = allForFeed.filter(ep => {
+      const pos = this.state.playbackPositions[ep.id];
+      const isProg = inProgressEps.some(p => p.guid === ep.guid);
+      return !isProg && (!pos || (!pos.completed && (!pos.position || pos.position <= 2)));
+    });
+
+    let feedEpisodes = [...inProgressEps, ...unplayedEps].slice(0, 3);
+    const hasUnplayed = feedEpisodes.length > 0;
+    if (feedEpisodes.length < 3) {
+      const existingGuids = new Set(feedEpisodes.map(e => e.guid));
+      const remaining = allForFeed.filter(e => !existingGuids.has(e.guid)).slice(0, 3 - feedEpisodes.length);
+      feedEpisodes.push(...remaining);
+    }
+
+    const widgetHeader = hasUnplayed
+      ? (inProgressEps.length > 0 ? 'Continue & up next' : 'Up next (unplayed)')
+      : 'Caught up • Latest';
+
+    let recentWidgetHtml = '';
+    if (this.state.downloadingFeeds.has(id)) {
+      recentWidgetHtml = `
+        <div class="feed-downloading-hint">
+          <div class="spinner" style="margin: 0 auto 0.75rem auto; width: 28px; height: 28px; border: 3px solid var(--border-light); border-top-color: var(--text-primary); border-radius: 50%;"></div>
+          <p class="feed-downloading-text">... downloading episodes</p>
+        </div>
+      `;
+    } else if (feedEpisodes.length > 0) {
+      recentWidgetHtml = `
+        <div class="feed-recent-widget">
+          <div class="feed-recent-header">${widgetHeader}</div>
+          <div class="feed-recent-list">
+            ${feedEpisodes.map(ep => {
+              const isCurrent = this.state.currentEpisode && this.state.currentEpisode.guid === ep.guid;
+              const isEpPlaying = isCurrent && this.state.playbackStatus === 'playing';
+              const pos = this.state.playbackPositions[ep.id];
+              const isCompleted = pos && (pos.completed === 1 || pos.completed === true);
+              const isInProgress = pos && !isCompleted && pos.position > 2;
+              let durStr = ep.duration ? formatDurationCompact(ep.duration) : '';
+              return `
+                <div class="recent-ep-row ${isCurrent ? 'active' : ''} ${isCompleted ? 'is-played' : ''} ${isInProgress ? 'is-in-progress' : ''}" data-guid="${escapeHtml(ep.guid)}" title="${escapeHtml(ep.title)}">
+                  <button class="btn-recent-play ${isEpPlaying ? 'is-playing' : ''}" data-guid="${escapeHtml(ep.guid)}" aria-label="Play ${escapeHtml(ep.title)}">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">${isEpPlaying ? '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>' : '<polygon points="5 3 19 12 5 21 5 3"></polygon>'}</svg>
+                  </button>
+                  <span class="recent-ep-title">${escapeHtml(ep.title)}</span>
+                  ${durStr ? `<span class="recent-ep-duration">${durStr}</span>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="feed-header">
+        <img class="feed-art" src="${artworkUrl(meta.image, 'large')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
+        <div class="feed-info">
+          <h4>${escapeHtml(meta.title || url)}</h4>
+          <p>${meta.error ? `<span style="color: #ef4444;">${escapeHtml(meta.error)}</span>` : `${meta.episodesCount || feedEpisodes.length} episodes`}</p>
+        </div>
+        <button class="btn-feed-unsubscribe" title="Remove podcast" aria-label="Remove podcast">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+      ${plainDesc ? `<p class="feed-card-desc">${escapeHtml(plainDesc)}</p>` : ''}
+      ${recentWidgetHtml}
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-feed-unsubscribe') || e.target.closest('.recent-ep-row')) return;
+      this.openFeedDetail(id);
+    });
+
+    card.querySelector('.btn-feed-unsubscribe')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.promptRemoveFeed(id);
+    });
+
+    card.querySelectorAll('.recent-ep-row').forEach(row => {
+      const guid = row.dataset.guid;
+      const ep = feedEpisodes.find(item => item.guid === guid);
+      if (!ep) return;
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.app.playback.toggleEpisodePlayback(ep);
+      });
+    });
+
+    console.log('>>>', card);
+
+    return card;
+  }
+
+  updateFeedCard(id) {
+    const grid = this.elements.feedsGrid;
+    if (!grid) return;
+    const existing = grid.querySelector(`[data-feed-id="${CSS.escape(String(id))}"]`);
+    if (!existing) return;
+    existing.replaceWith(this.renderFeedCard(id));
+    this.updateFeedCountUI();
   }
 
   _feedsEmptyOnboardingHtml() {
@@ -617,14 +688,16 @@ export class FeedsManager {
 
   // ── Feed detail ─────────────────────────────────────────────────────────
 
-  openFeedDetail(feedUrl) {
-    this.app.modal.navigateTo(null, feedUrl);
+  openFeedDetail(target) {
+    this.app.modal.navigateTo(null, target);
   }
 
-  renderFeedDetail(feedUrl) {
-    const isSubbed = this.state.feeds.includes(feedUrl);
-    const meta = this.state.feedMetadata[feedUrl] || {};
-    let episodes = this.state.allEpisodes.filter(e => e.feedUrl === feedUrl);
+  renderFeedDetail(target) {
+    const isSubbed = this.state.feeds.includes(target);
+    const meta = this.state.feedMetadata[target] || {};
+    let episodes = isSubbed
+      ? this.state.allEpisodes.filter(e => e.subscriptionId === target)
+      : this.state.allEpisodes.filter(e => e.feedUrl === target);
     const header = this.elements.feedDetailHeader;
     if (!header) return;
 
@@ -638,10 +711,10 @@ export class FeedsManager {
       });
     }
 
-    if (header.dataset.feedUrl !== feedUrl) {
-      header.dataset.feedUrl = feedUrl;
+    if (header.dataset.feedTarget !== target) {
+      header.dataset.feedTarget = target;
       const prevView = this.state.navHistory[this.state.navHistory.length - 1];
-      const backLabel = prevView?.feedUrl
+      const backLabel = prevView?.feedTarget
         ? '← Back'
         : prevView?.tab
           ? `← ${prevView.tab.charAt(0).toUpperCase() + prevView.tab.slice(1)}`
@@ -676,10 +749,10 @@ export class FeedsManager {
       const actionBtn = header.querySelector('#btn-feed-action');
       if (actionBtn) {
         actionBtn.addEventListener('click', () => {
-          if (this.state.feeds.includes(feedUrl)) {
-            this.promptRemoveFeed(feedUrl);
+          if (this.state.feeds.includes(target)) {
+            this.promptRemoveFeed(target);
           } else {
-            this.addFeed(feedUrl, meta.title, meta.artwork);
+            this.addFeed(target, meta.title, meta.artwork);
             actionBtn.textContent = 'Unsubscribe';
             actionBtn.classList.remove('btn-primary');
             actionBtn.classList.add('btn-secondary');
@@ -688,7 +761,8 @@ export class FeedsManager {
       }
 
       header.querySelector('#btn-copy-rss').addEventListener('click', () => {
-        navigator.clipboard.writeText(feedUrl).then(() => {
+        const rssUrl = this.state.feedUrlById[target] || target;
+        navigator.clipboard.writeText(rssUrl).then(() => {
           const btn = header.querySelector('#btn-copy-rss');
           if (btn) btn.textContent = 'Copied!';
           setTimeout(() => {
@@ -717,8 +791,8 @@ export class FeedsManager {
       // feeds the user has NOT subscribed to yet. Subscribed feeds are read by DB
       // id (loadFeedById) via refreshAllFeeds; here we fall back to fetching the
       // RSS source so the user can listen before following.
-      if (!isSubbed && !this.previewLoadingSet.has(feedUrl)) {
-        this.previewLoadingSet.add(feedUrl);
+      if (!isSubbed && !this.previewLoadingSet.has(target)) {
+        this.previewLoadingSet.add(target);
         list.innerHTML = `
           <div class="empty-state">
             <div class="spinner" style="margin: 0 auto 1.25rem auto; width: 32px; height: 32px; border: 3px solid var(--border-light); border-top-color: var(--text-primary); border-radius: 50%;"></div>
@@ -726,16 +800,16 @@ export class FeedsManager {
             <p>Fetching episodes so you can listen before adding.</p>
           </div>
         `;
-        this.fetchSingleFeed(feedUrl, this.state.allEpisodes, this.state.feedMetadata).then(res => {
-          this.previewLoadingSet.delete(feedUrl);
+        this.fetchSingleFeed(target, this.state.allEpisodes, this.state.feedMetadata).then(res => {
+          this.previewLoadingSet.delete(target);
           if (res) {
-            header.dataset.feedUrl = '';
-            this.renderFeedDetail(feedUrl);
+            header.dataset.feedTarget = '';
+            this.renderFeedDetail(target);
           } else {
             list.innerHTML = `<div class="empty-state"><h3>Unable to load preview</h3><p>Could not fetch RSS feed for this podcast.</p></div>`;
           }
         }).catch(() => {
-          this.previewLoadingSet.delete(feedUrl);
+          this.previewLoadingSet.delete(target);
           list.innerHTML = `<div class="empty-state"><h3>Unable to load preview</h3><p>Could not fetch RSS feed for this podcast.</p></div>`;
         });
         return;
@@ -790,6 +864,7 @@ export class FeedsManager {
           const origText = this.elements.btnSubmitFeed.textContent;
           this.elements.btnSubmitFeed.textContent = 'Subscribed!';
           setTimeout(() => { this.elements.btnSubmitFeed.textContent = origText; }, 2000);
+          this.app.modal.closeAddModal();
         }
       });
     }
@@ -830,9 +905,12 @@ export class FeedsManager {
             const data = await res.json();
             if (data.results && data.results[0] && data.results[0].feedUrl) {
               const feedUrl = data.results[0].feedUrl;
-              if (!this.state.feeds.includes(feedUrl)) {
-                this.state.feeds.push(feedUrl);
-                await this.app.sync.saveFeedToServer(feedUrl, data.results[0].collectionName, data.results[0].artworkUrl600);
+              const existingId = this.state.feedUrlById[feedUrl];
+              if (existingId && this.state.feeds.includes(existingId)) continue;
+              const result = await this.app.sync.saveFeedToServer(feedUrl, data.results[0].collectionName, data.results[0].artworkUrl600);
+              if (result && result.id) {
+                this.state.feeds.push(result.id);
+                this.state.feedUrlById = { ...this.state.feedUrlById, [result.id]: feedUrl };
               }
             }
           } catch (e) {}
