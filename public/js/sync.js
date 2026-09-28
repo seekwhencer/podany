@@ -77,8 +77,7 @@ export class SyncManager {
             lastListenedAt: Math.floor(Date.now() / 1000)
         };
         this.storage.savePositions(this.state.playbackPositions);
-        this.app.timeline.renderContinueShelf();
-        this.app.timeline.updateFilterBadges();
+        this.app.timeline.refreshContinueShelfAfterPositionChange();
         this.savePlaybackPositionToServerAsync(episodeId, positionSeconds, completed);
     }
 

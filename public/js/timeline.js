@@ -3,15 +3,13 @@
 // progress-scrubbing interactivity.
 
 import {
-    escapeHtml,
     formatTime,
     parseDurationSeconds,
-    formatCompactDate,
-    formatHumanRelativeDate,
-    formatEpisodeDuration
+    formatCompactDate
 } from './utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from './config.js';
 import EpisodeCard from './components/episodeCard.js';
+import ShowNotes from './components/showNotes.js';
 
 export class TimelineManager {
     constructor(app) {
@@ -20,8 +18,18 @@ export class TimelineManager {
         this.elements = app.elements;
         this.config = app.config;
         this.episodeCard = new EpisodeCard(this.app);
+        this.showNotes = new ShowNotes(this.app);
         this.sentinelObserver = null;
         this.emptySearchDebounceTimer = null;
+        this._lastShelfOrder = null;
+    }
+
+    openShowNotes(targetEp) {
+        this.showNotes.openShowNotes(targetEp);
+    }
+
+    closeShowNotes() {
+        this.showNotes.closeShowNotes();
     }
 
     // ── Filtering & sorting ─────────────────────────────────────────────────
@@ -124,19 +132,7 @@ export class TimelineManager {
         }
     }
 
-    // ── Continue shelf ──────────────────────────────────────────────────────
-
-    getContinueRowCapacity() {
-        const w = window.innerWidth;
-        if (w >= 1400) return 5;
-        if (w >= 1150) return 4;
-        if (w >= 880) return 3;
-        return 2;
-    }
-
-    renderContinueShelf() {
-        if (!this.elements.continueShelf || !this.elements.continueGrid) return;
-
+    _computeContinueRow() {
         const currentGuid = this.state.currentEpisode ? this.state.currentEpisode.guid : null;
 
         let inProgressEps = this.state.allEpisodes.filter(ep => {
@@ -154,6 +150,35 @@ export class TimelineManager {
         });
 
         this._pushCurrentToFront(inProgressEps, currentGuid);
+        return inProgressEps;
+    }
+
+    // ── Continue shelf ──────────────────────────────────────────────────────
+
+    getContinueRowCapacity() {
+        const w = window.innerWidth;
+        if (w >= 1400) return 5;
+        if (w >= 1150) return 4;
+        if (w >= 880) return 3;
+        return 2;
+    }
+
+    renderContinueShelf() {
+        this._paintContinueRow(this._computeContinueRow());
+    }
+
+    refreshContinueShelfAfterPositionChange() {
+        const inProgressEps = this._computeContinueRow();
+        const signature = inProgressEps.map(ep => ep.id).join('|');
+        if (signature !== this._lastShelfOrder) {
+            this._lastShelfOrder = signature;
+            this._paintContinueRow(inProgressEps);
+        }
+        this.updateFilterBadges();
+    }
+
+    _paintContinueRow(inProgressEps) {
+        if (!this.elements.continueShelf || !this.elements.continueGrid) return;
 
         if (this.elements.continueCount) {
             this.elements.continueCount.textContent = inProgressEps.length;
@@ -411,104 +436,6 @@ export class TimelineManager {
         }
     }
 
-    formatShowNotesHtml(rawInput) {
-        if (!rawInput) return '<p>No show notes available for this episode.</p>';
-
-        let processed = rawInput;
-        const hasHtmlTags = /<\/?[a-z][\s\S]*>/i.test(processed);
-
-        if (!hasHtmlTags) {
-            processed = escapeHtml(processed);
-            processed = processed.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-            processed = processed.split(/\r?\n\r?\n/).map(p => `<p>${p.replace(/\r?\n/g, '<br>')}</p>`).join('');
-        } else {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(`<div>${processed}</div>`, 'text/html');
-            const container = doc.body.firstElementChild || doc.body;
-
-            const dangerous = container.querySelectorAll('script, style, iframe, object, embed, form, input, button');
-            dangerous.forEach(el => el.remove());
-
-            const links = container.querySelectorAll('a');
-            links.forEach(a => {
-                a.setAttribute('target', '_blank');
-                a.setAttribute('rel', 'noopener noreferrer');
-            });
-
-            processed = container.innerHTML;
-        }
-
-        processed = processed.replace(/\b(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)\b/g, (match, h, m, s) => {
-            const hours = h ? parseInt(h, 10) : 0;
-            const mins = parseInt(m, 10);
-            const secs = parseInt(s, 10);
-            const totalSec = (hours * 3600) + (mins * 60) + secs;
-            return `<button type="button" class="note-timestamp" data-seconds="${totalSec}">${match}</button>`;
-        });
-
-        return processed;
-    }
-
-    seekToExactTime(seconds) {
-        if (this.state.activeEngine === 'audio' && this.elements.audio) {
-            this.elements.audio.currentTime = seconds;
-        } else if (this.state.activeEngine === 'youtube' && this.state.ytPlayer && this.state.ytPlayer.seekTo) {
-            this.state.ytPlayer.seekTo(seconds, true);
-        }
-        this.app.playback.updateProgress();
-    }
-
-    openShowNotes(targetEp) {
-        const ep = targetEp || this.state.currentEpisode;
-        if (!ep || !this.elements.showNotesModal) return;
-
-        if (this.elements.showNotesPodcastTitle) {
-            this.elements.showNotesPodcastTitle.textContent = ep.podcastTitle || 'Podcast';
-        }
-        if (this.elements.showNotesEpisodeTitle) {
-            this.elements.showNotesEpisodeTitle.textContent = ep.title || 'Untitled Episode';
-        }
-        if (this.elements.showNotesMeta) {
-            const dStr = ep.timestamp ? formatHumanRelativeDate(ep.timestamp) : (ep.pubDate || '');
-            const dur = ep.duration ? formatEpisodeDuration(ep.duration) : '';
-            this.elements.showNotesMeta.textContent = [dStr, dur].filter(Boolean).join(' • ');
-        }
-        if (this.elements.showNotesContent) {
-            const rawContent = ep.content || ep.description || '';
-            this.elements.showNotesContent.innerHTML = this.formatShowNotesHtml(rawContent);
-
-            this.elements.showNotesContent.querySelectorAll('.note-timestamp').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const sec = parseFloat(btn.dataset.seconds);
-                    if (isNaN(sec)) return;
-                    if (this.state.currentEpisode && this.state.currentEpisode.guid === ep.guid) {
-                        this.seekToExactTime(sec);
-                        if (this.state.playbackStatus !== 'playing') {
-                            this.app.playback.resumeCurrentEngine();
-                        }
-                    } else {
-                        this.app.playback.playEpisode(ep);
-                        setTimeout(() => {
-                            this.seekToExactTime(sec);
-                        }, 300);
-                    }
-                });
-            });
-        }
-
-        this.elements.showNotesModal.classList.remove('hidden');
-        window.history.pushState({ modal: 'showNotes' }, '', window.location.hash);
-    }
-
-    closeShowNotes() {
-        if (window.history.state && window.history.state.modal) {
-            window.history.back();
-        } else if (this.elements.showNotesModal) {
-            this.elements.showNotesModal.classList.add('hidden');
-        }
-    }
-
     setupProgressTrackInteractivity(progressTrack, card, ep) {
         if (!progressTrack) return;
         let isDragging = false;
@@ -657,17 +584,17 @@ export class TimelineManager {
         }
 
         if (this.elements.btnPlayerNotes) {
-            this.elements.btnPlayerNotes.addEventListener('click', () => this.openShowNotes());
+            this.elements.btnPlayerNotes.addEventListener('click', () => this.showNotes.openShowNotes());
         }
         if (this.elements.playerTrackInfo) {
-            this.elements.playerTrackInfo.addEventListener('click', () => this.openShowNotes());
+            this.elements.playerTrackInfo.addEventListener('click', () => this.showNotes.openShowNotes());
         }
         if (this.elements.btnCloseNotes) {
-            this.elements.btnCloseNotes.addEventListener('click', () => this.closeShowNotes());
+            this.elements.btnCloseNotes.addEventListener('click', () => this.showNotes.closeShowNotes());
         }
         if (this.elements.showNotesModal) {
             this.elements.showNotesModal.addEventListener('click', (e) => {
-                if (e.target === this.elements.showNotesModal) this.closeShowNotes();
+                if (e.target === this.elements.showNotesModal) this.showNotes.closeShowNotes();
             });
         }
 

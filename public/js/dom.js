@@ -114,6 +114,7 @@ export class Elements {
     // Show notes modal
     this.showNotesModal = g('show-notes-modal');
     this.btnCloseNotes = g('btn-close-notes');
+    this.showNotesArtwork = g('show-notes-artwork');
     this.showNotesPodcastTitle = g('show-notes-podcast-title');
     this.showNotesEpisodeTitle = g('show-notes-episode-title');
     this.showNotesMeta = g('show-notes-meta');

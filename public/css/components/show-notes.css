@@ -1,0 +1,109 @@
+/* Show Notes Modal */
+.show-notes-modal-card {
+    max-width: 620px;
+    width: 92%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.show-notes-header-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 0;
+    align-items: flex-start;
+    flex-flow: column;
+    margin-top: var(--space-sm);
+}
+
+.show-notes-artwork {
+    width: 100%;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--border-light);
+}
+
+.show-notes-podcast-tag {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.show-notes-episode-title {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+    margin-bottom: 0.35rem;
+}
+
+.show-notes-meta {
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.show-notes-modal-body {
+    overflow-y: auto;
+    max-height: calc(85vh - 120px);
+    padding-right: 0.35rem;
+}
+
+.show-notes-content {
+    font-size: var(--fs-md);
+    line-height: 1.65;
+    color: var(--text-secondary);
+    word-break: break-word;
+
+    p {
+        margin-bottom: 0.9rem;
+    }
+
+    a {
+        color: var(--text-secondary);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1px;
+        text-decoration-color: var(--border-light);
+        transition: color 0.15s, text-decoration-color 0.15s;
+        word-break: break-all;
+
+        &:hover {
+            color: var(--text-primary);
+            text-decoration-color: var(--text-secondary);
+        }
+    }
+
+    ul,
+    ol {
+        margin: 0.6rem 0 1rem 1.25rem;
+        padding: 0;
+    }
+
+    li {
+        margin-bottom: 0.35rem;
+    }
+
+    blockquote {
+        border-left: 3px solid var(--border-light);
+        padding-left: 0.85rem;
+        margin: 0.75rem 0;
+        color: var(--text-muted);
+        font-style: italic;
+    }
+}
+
+.show-notes-modal-card {
+    .modal-header {
+        display: flex;
+        flex-direction: column;
+        align-items: initial;
+    }
+}

@@ -32,6 +32,14 @@
   --fs-xl: 2rem;
   --fs-2xl: 2.6rem;
   --fs-3xl: 3rem;
+
+  --space-2xs: 0.1rem;
+  --space-xs: 0.3rem;
+  --space-sm: 0.6rem;
+  --space-md: 1rem;
+  --space-lg: 1.4rem;
+  --space-xl: 2rem;
+  --space-2xl: 4rem;
 }
 
 @media (prefers-color-scheme: light) {

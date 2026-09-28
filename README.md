@@ -3,34 +3,25 @@
 Private podcast RSS feed aggregator and web player, self-hosted with Express and MariaDB.
 
 ## This fork
-Thanks to Steffen, who was basically written this thing with a frontier model, based on ONE js file and ONE css file.  
-The basic idea of his project is a "serverless" cloud app with the deep use of browser's caching system.  
-
+Thanks to Steffen, who basically wrote this thing with a frontier model, based on one js file and one css file.  
+The basic idea of his project is a "serverless" cloud app with a deep use of the browser's caching system.  
+ 
 
 ## Selfhosting Edition
 
-This Fork was done by Matthias Kallenbach, [skwncr.net](https://skwncr.net)  
+This fork was done by Matthias Kallenbach, [skwncr.net](https://skwncr.net)  
 Using VS Code + Kilo Code + local AI on 32G VRAM with llama.cpp and Tiel Coder 35B (MTP UD Q6) on 220K tokens context per session.
 
-What is done and what it do now:
+What the fork adds on top of the original:
 
-- Splitting a over 4K row js file for the frontend in pieces.
-- Splitting a large flatten css file in a semantic set of imports with variables 
-- A express server works in the brackground now.
-- A database (MariaDB) works in the background now.
-- The sever is now the source of truth
-- All audio files will be stored locally
-- All images will be stored locally
-- Thumbnails will be generated from images
-- User login and user session
-- Up Next Queue stored in the database
-- A websocket endpoint and a messaging system between client and server
-- Play state will be stored in the database
-- Added a bundler with esbuild
-- Docker setup
-- Database schema
-- Tests ...
-- ... and more
+- Backend as an Express server that is the source of truth (previously browser-cache-only).
+- MariaDB database for subscriptions, play state, downloads and users.
+- Frontend split from a 4K+ line JS file into modular ES6 classes under `public/js/`.
+- CSS split from one flat file into a semantic set of imports with `:root` variables.
+- Server-side storage for all audio files and images; thumbnails generated locally (sharp).
+- User login + session (magic link or local), Up-Next queue and play state persisted in the DB.
+- WebSocket live endpoint (`/live`) with a client/server messaging system.
+- esbuild bundler, Docker setup, SQL schema, data migration and tests.
 
 ## Screenshots
 
@@ -68,8 +59,8 @@ What is done and what it do now:
 ## Technology Stack
 
 - **Frontend**: Vanilla JavaScript (ES6+ classes), bundled with esbuild to `public/dist/bundle.js`; HTML5 Audio, CSS3 Variables, PWA Service Worker.
-- **Backend**: Express v4 (`src/`), ES modules (`"type": "module"`), layered `routes → services → models → db`.
-- **Database**: MariaDB via `mysql2` connection pool; schema in `src/db/schema.sql`.
+- **Backend**: Express v4 (`server/`), ES modules (`"type": "module"`), layered `routes → services → models → db`.
+- **Database**: MariaDB via `mysql2` connection pool; schema in `server/db/schema.sql`.
 - **Auth**: Magic-link tokens (SHA-256 hashed) + in-memory session cookies via `express-session`.
 - **Email Delivery**: Resend REST API (optional; without a key the verify URL is returned directly for local dev).
 
@@ -77,18 +68,19 @@ What is done and what it do now:
 
 ```
 podany/
-├── src/                        # Self-Hosted backend (ES6 classes)
-│   ├── server.js               # Express entrypoint: app, middleware, routes, start
-│   ├── config/                 # Config class + defaults (env vars)
-│   ├── db/                     # MariaDB pool, migrator, schema.sql, data-migration
-│   ├── models/                 # Data-access classes (BaseModel, User, AuthToken, Subscription, PlaybackState, Downloads)
-│   ├── services/               # Business logic (Auth, Feed, Sync, AudioProxy, Downloads, Email, User, SessionStore, RateLimiter)
-│   ├── middleware/             # auth, cors, errorHandler, rateLimit
-│   ├── routes/                 # auth, sync, user, feed (+ audio-proxy, downloads)
-│   └── utils/                  # crypto, url (SSRF guard), response, password helpers
-├── public/                     # Static frontend + bundled JS
-│   ├── index.html              # Production home page
-│   ├── dev.html                # Development home page (served when AUTH_MODE=local / no Resend key)
+├── server/                       # Self-Hosted backend (ES6 classes)
+│   ├── index.js                  # Express entrypoint: app, middleware, routes, start
+│   ├── config/                   # Config class + defaults (env vars)
+│   ├── db/                       # MariaDB pool, migrator, schema.sql, data-migration
+│   ├── models/                   # Data-access classes (BaseModel, User, AuthToken, Subscription, PlaybackState, Downloads)
+│   ├── services/                 # Business logic (auth, feed, playback, subscription, downloads, audioProxy, image, email, user, sessionStore, rateLimiter)
+│   ├── live/                     # WebSocket live hub, protocol, emitter
+│   ├── middleware/               # auth, cors, errorHandler, rateLimit
+│   ├── routes/                   # auth, feed, playback, subscription, user, audio-proxy, downloads, images
+│   └── utils/                    # crypto, url (SSRF guard), response, password helpers
+├── public/                       # Static frontend + bundled JS
+│   ├── index.html                # Production home page
+│   ├── dev.html                  # Development home page (served when AUTH_MODE=local / no Resend key)
 │   ├── css/                    # Modular CSS (index.css imports variables, typo, forms, global, components/)
 │   │   ├── variables.css       # :root theme tokens
 │   │   ├── typo.css            # base reset + layout primitives
@@ -100,8 +92,14 @@ podany/
 │   ├── sw.js                   # PWA service worker
 │   ├── auth/verify/index.html  # Standalone magic-link verify page
 │   ├── js/                     # Modular frontend source (import/export classes)
+│   │   ├── main.js             # Entry: wires managers into a single `app` container
+│   │   ├── components/         # episodeCard, feedCard, feedsGrid, feedDetail*, podcastDirectory, opml, showNotes
+│   │   ├── ui/               # theme, modal, player-ui
+│   │   └── live/             # LiveClient (WebSocket)
 │   └── dist/bundle.js          # esbuild output (built by `npm run build`)
-├── docker-compose.yml          # Express app + MariaDB
+├── docker-compose.yml            # Express app + MariaDB (podany_app + podany_db)
+├── docker-compose-dev.yml        # Local dev stack
+├── docker-compose.prod.yml       # Production stack
 ├── Dockerfile
 ├── docker-entrypoint.sh        # Wait for DB, apply schema, start server
 ├── .env.example                # All environment variables
@@ -111,7 +109,7 @@ podany/
 
 ## Database Schema
 
-Timestamps are Unix epoch seconds (`BIGINT`), matching the app code directly. See `src/db/schema.sql` for the full definition. Key tables:
+Timestamps are Unix epoch seconds (`BIGINT`), matching the app code directly. See `server/db/schema.sql` for the full definition. Key tables:
 
 - `users` — id, email (unique), created_at
 - `auth_tokens` — token_hash (unique), user_id, expires_at, used, created_at
@@ -159,7 +157,9 @@ cp .env.example .env      # then edit the values (optional; defaults are shown i
 docker compose up --build
 ```
 
-This starts two services — `db` (MariaDB 11) and `app` (Express). The container entrypoint waits for MariaDB, applies the schema on startup, then starts the server. Open `http://localhost:8788`.
+This starts two services — `podany_db` (MariaDB 11) and `podany_app` (Express). The container entrypoint waits for MariaDB, applies the schema on startup, then starts the server. Open `http://localhost:8788`.
+
+For a plain local dev stack or a hardened production stack, use `docker-compose-dev.yml` / `docker-compose.prod.yml` instead of the default `docker-compose.yml`.
 
 ## Data Migration (Cloudflare D1 / SQLite → MariaDB)
 
@@ -173,7 +173,7 @@ npm run migrate:data -- --source ./my-export.json
 npm run migrate:data -- --source ./my-export.sqlite --dry-run
 ```
 
-The script reads the known tables and upserts them into the MariaDB schema. See `src/db/migrate-data.js`.
+The script reads the known tables and upserts them into the MariaDB schema. See `server/db/migrate-data.js`.
 
 ## Configuration
 
@@ -197,6 +197,9 @@ All values are read by the `Config` class from process env + `.env` (see `.env.e
 | `COOKIE_SECURE` | boolean | `true` | Set `Secure` on the cookie (use `false` over plain HTTP) |
 | `RATE_LIMIT_LINKS_PER_HOUR` | number | `60` | Login links allowed per email per hour |
 | `CORS_ORIGIN` | string / `*` | `*` | Allowed CORS origin |
+| `WEBSOCKET_PATH` | string | `/live` | WebSocket upgrade path (same port as HTTP) |
+| `WS_HEARTBEAT_INTERVAL_MS` | number | `30000` | Server ping interval for live connections |
+| `WS_HEARTBEAT_TIMEOUT_MS` | number | `60000` | Drop a connection if no pong within this time |
 | `MAGIC_LINK_ENABLED` | boolean | `true` | Enable magic-link login (disabled entirely when `false`, returns 403) |
 | `ENVIRONMENT` | `development`\|`production` | `production` | Runtime environment; `development` serves `dev.html` |
 | `DEFAULT_USER_EMAIL` | string | — | Seeds a default user on startup (idempotent); empty disables it |
@@ -204,6 +207,18 @@ All values are read by the `Config` class from process env + `.env` (see `.env.e
 | `DEFAULT_USER_COLOR` | string | `#d8cdbe` | Accent color for the seeded default user |
 
 Secrets are never committed; keep `.env` private.
+
+## Documentation
+
+Detailed, feature-specific write-ups live in sibling Markdown files at the repo root:
+
+- `SELFHOSTED.md` — self-hosting guide and design overview
+- `FRONTEND.md` — modular frontend architecture and component breakdown
+- `FEEDS.md` — feed discovery, subscription and sync flows
+- `WEBSOCKET.md` — `/live` live-event protocol (server + client)
+- `GUID.md` — episode GUID handling
+- `LOCALSTORAGE.md` — client cache / storage strategy
+- `ADD_SUBSCRIPTION.md` — adding subscriptions (directory, OPML, direct URLs)
 
 ## Testing
 
