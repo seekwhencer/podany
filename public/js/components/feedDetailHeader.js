@@ -23,16 +23,15 @@ export class FeedDetailHeader {
             header.dataset.feedTarget = target;
             this._buildHeader(header, target, isSubbed, meta, totalCount, episodes, q);
         } else {
-            const badge = header.querySelector('#feed-episodes-badge');
-            if (badge) {
-                badge.textContent = q
+            const els = header.__els;
+            if (els && els.badge) {
+                els.badge.textContent = q
                     ? `${episodes.length} / ${totalCount} episodes`
                     : `${totalCount} episodes`;
             }
-            const actionBtn = header.querySelector('#btn-feed-action');
-            if (actionBtn) {
-                actionBtn.textContent = isSubbed ? 'Unsubscribe' : '+ Follow Podcast';
-                actionBtn.className = `btn ${isSubbed ? 'btn-secondary' : 'btn-primary'} btn-sm`;
+            if (els && els.actionBtn) {
+                els.actionBtn.textContent = isSubbed ? 'Unsubscribe' : '+ Follow Podcast';
+                els.actionBtn.className = `btn ${isSubbed ? 'btn-secondary' : 'btn-primary'} btn-sm`;
             }
         }
     }
@@ -67,34 +66,44 @@ export class FeedDetailHeader {
         </div>
       `;
 
-        header.querySelector('#btn-feed-back').addEventListener('click', () => {
-            this.app.modal.navigateBack();
-        });
+        const els = {};
+        els.backBtn = header.querySelector('#btn-feed-back');
+        els.actionBtn = header.querySelector('#btn-feed-action');
+        els.copyRssBtn = header.querySelector('#btn-copy-rss');
+        els.badge = header.querySelector('#feed-episodes-badge');
 
-        const actionBtn = header.querySelector('#btn-feed-action');
-        if (actionBtn) {
-            actionBtn.addEventListener('click', () => {
+        if (els.backBtn) {
+            els.backBtn.addEventListener('click', () => {
+                this.app.modal.navigateBack();
+            });
+        }
+
+        if (els.actionBtn) {
+            els.actionBtn.addEventListener('click', () => {
                 if (this.state.feeds.includes(target)) {
                     this.app.feeds.promptRemoveFeed(target);
                 } else {
                     this.app.feeds.addFeed(target, meta.title, meta.artwork);
-                    actionBtn.textContent = 'Unsubscribe';
-                    actionBtn.classList.remove('btn-primary');
-                    actionBtn.classList.add('btn-secondary');
+                    els.actionBtn.textContent = 'Unsubscribe';
+                    els.actionBtn.classList.remove('btn-primary');
+                    els.actionBtn.classList.add('btn-secondary');
                 }
             });
         }
 
-        header.querySelector('#btn-copy-rss').addEventListener('click', () => {
-            const rssUrl = this.state.feedUrlById[target] || target;
-            navigator.clipboard.writeText(rssUrl).then(() => {
-                const btn = header.querySelector('#btn-copy-rss');
-                if (btn) btn.textContent = 'Copied!';
-                setTimeout(() => {
-                    if (btn) btn.textContent = 'Copy RSS';
-                }, 2000);
+        if (els.copyRssBtn) {
+            els.copyRssBtn.addEventListener('click', () => {
+                const rssUrl = this.state.feedUrlById[target] || target;
+                navigator.clipboard.writeText(rssUrl).then(() => {
+                    els.copyRssBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        els.copyRssBtn.textContent = 'Copy RSS';
+                    }, 2000);
+                });
             });
-        });
+        }
+
+        header.__els = els;
     }
 }
 

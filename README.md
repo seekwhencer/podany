@@ -17,6 +17,7 @@ What the fork adds on top of the original:
 - Backend as an Express server that is the source of truth (previously browser-cache-only).
 - MariaDB database for subscriptions, play state, downloads and users.
 - Frontend split from a 4K+ line JS file into modular ES6 classes under `public/js/`.
+- Froontend transformed from static DOM to dynamic DOM
 - CSS split from one flat file into a semantic set of imports with `:root` variables.
 - Server-side storage for all audio files and images; thumbnails generated locally (sharp).
 - User login + session (magic link or local), Up-Next queue and play state persisted in the DB.

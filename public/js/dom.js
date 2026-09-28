@@ -86,6 +86,7 @@ export class Elements {
     // Add feed modal
     this.addModal = g('add-modal');
     this.podcastSearchQuery = g('podcast-search-query');
+    this.modalCategoryChips = g('modal-category-chips');
     this.btnSearchDirectory = g('btn-search-directory');
     this.searchDirectoryResults = g('search-directory-results');
     this.feedUrlInput = g('feed-url-input');
@@ -120,9 +121,18 @@ export class Elements {
     this.showNotesMeta = g('show-notes-meta');
     this.showNotesContent = g('show-notes-content');
 
+    // Empty-state quick-add + OPML trigger
+    this.emptyQuickForm = g('empty-quick-form');
+    this.emptyQuickInput = g('empty-quick-input');
+    this.emptyQuickSubmit = g('btn-empty-quick-submit');
+    this.emptyQuickResults = g('empty-quick-results');
+    this.emptyOpmlTrigger = g('btn-empty-opml-trigger');
+
     // Audio engine + full player bar
     this.audio = g('audio-engine');
     this.playerBar = g('player-bar');
+    this.ytPlayer = g('yt-player');
+    this.ytPlayerContainer = g('yt-player-container');
     this.playerTrackInfo = q('.player-track-info');
     this.playerArtwork = g('player-artwork');
     this.playerTitle = g('player-title');

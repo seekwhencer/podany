@@ -22,6 +22,14 @@ export class TimelineManager {
         this.sentinelObserver = null;
         this.emptySearchDebounceTimer = null;
         this._lastShelfOrder = null;
+        this.episodeCards = new Map();
+        this.continueCards = new Map();
+    }
+
+    allEpisodeCards() {
+        const detailEpisodes = this.app.feeds && this.app.feeds.detail && this.app.feeds.detail.episodes;
+        const detailCards = detailEpisodes ? [...detailEpisodes.cards.values()] : [];
+        return [...this.episodeCards.values(), ...this.continueCards.values(), ...detailCards];
     }
 
     openShowNotes(targetEp) {
@@ -210,8 +218,11 @@ export class TimelineManager {
         }
 
         const visibleEps = this.state.continueCollapsed ? inProgressEps.slice(0, capacity) : inProgressEps;
+        this.continueCards.clear();
         visibleEps.forEach(ep => {
-            this.elements.continueGrid.appendChild(this.episodeCard.createEpisodeCard(ep));
+            const card = this.episodeCard.createEpisodeCard(ep);
+            this.continueCards.set(String(ep.id), { el: card, els: card.__els });
+            this.elements.continueGrid.appendChild(card);
         });
     }
 
@@ -301,16 +312,19 @@ export class TimelineManager {
         const container = this.elements.timelineList;
         if (!container) return;
 
-        const existingSentinel = document.getElementById('timeline-sentinel');
+        const existingSentinel = this.elements.byId('timeline-sentinel');
         if (existingSentinel) existingSentinel.remove();
 
         const start = (this.state.timelinePage - 1) * this.state.pageSize;
         const end = this.state.timelinePage * this.state.pageSize;
         const batch = this.state.filteredEpisodes.slice(start, end);
 
+        this.episodeCards.clear();
         const frag = document.createDocumentFragment();
         batch.forEach(ep => {
-            frag.appendChild(this.episodeCard.createEpisodeCard(ep));
+            const card = this.episodeCard.createEpisodeCard(ep);
+            this.episodeCards.set(String(ep.id), { el: card, els: card.__els });
+            frag.appendChild(card);
         });
         container.appendChild(frag);
 
@@ -338,10 +352,10 @@ export class TimelineManager {
     // ── Empty-state wiring ──────────────────────────────────────────────────
 
     wireEmptyStateEvents() {
-        const quickForm = document.getElementById('empty-quick-form');
-        const quickInput = document.getElementById('empty-quick-input');
-        const quickSubmit = document.getElementById('btn-empty-quick-submit');
-        const quickResults = document.getElementById('empty-quick-results');
+        const quickForm = this.elements.emptyQuickForm;
+        const quickInput = this.elements.emptyQuickInput;
+        const quickSubmit = this.elements.emptyQuickSubmit;
+        const quickResults = this.elements.emptyQuickResults;
 
         if (quickInput && quickForm) {
             quickInput.addEventListener('input', () => {
@@ -387,7 +401,7 @@ export class TimelineManager {
             });
         }
 
-        document.getElementById('btn-empty-opml-trigger')?.addEventListener('click', () => {
+        this.elements.emptyOpmlTrigger?.addEventListener('click', () => {
             this.elements.opmlFileInput?.click();
         });
 
@@ -419,10 +433,11 @@ export class TimelineManager {
         }
         this.renderContinueShelf();
 
-        const cards = document.querySelectorAll(`.episode-card[data-id="${ep.id}"]`);
+        const cards = this.allEpisodeCards().filter(c => String(c.el.dataset.id) === String(ep.id));
         cards.forEach(card => {
-            card.classList.toggle('is-played', !isCompleted);
-            const checkBtn = card.querySelector('.btn-mark-played');
+            card.el.classList.toggle('is-played', !isCompleted);
+            const els = card.els || {};
+            const checkBtn = els.markBtn || card.el.querySelector('.btn-mark-played');
             if (checkBtn) {
                 checkBtn.classList.toggle('is-completed', !isCompleted);
                 checkBtn.innerHTML = !isCompleted ? this.config.cardIcons.CHECK_FILLED : this.config.cardIcons.CHECK;
@@ -438,6 +453,7 @@ export class TimelineManager {
 
     setupProgressTrackInteractivity(progressTrack, card, ep) {
         if (!progressTrack) return;
+        const els = card.__els || {};
         let isDragging = false;
 
         const handleScrub = (clientX, commit) => {
@@ -445,7 +461,7 @@ export class TimelineManager {
             if (rect.width <= 0) return;
             const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
             const pct = Math.round(ratio * 100);
-            const fillEl = progressTrack.querySelector('.ep-progress-fill');
+            const fillEl = els.fill || progressTrack.querySelector('.ep-progress-fill');
             if (fillEl) fillEl.style.width = `${pct}%`;
 
             let totalDur = 0;
@@ -462,7 +478,7 @@ export class TimelineManager {
 
             if (totalDur > 0) {
                 const targetTime = Math.round(ratio * totalDur);
-                const resumeBadge = card.querySelector('.ep-resume-time');
+                const resumeBadge = els.resumeBadge || card.querySelector('.ep-resume-time');
                 if (resumeBadge) resumeBadge.textContent = `• Resumes at ${formatTime(targetTime)}`;
 
                 if (commit) {

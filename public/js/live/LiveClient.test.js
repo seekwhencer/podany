@@ -85,7 +85,7 @@ function makeApp(extra = {}) {
     auth: { showAuthModal: record('showAuthModal'), handleLogout: record('handleLogout') },
     feeds: { updateFeedCountUI: record('updateFeedCountUI'), renderFeedsGrid: record('renderFeedsGrid') },
     playback: { syncPlaybackButtons: record('syncPlaybackButtons'), renderTimeline: record('renderTimeline'), renderContinueShelf: record('renderContinueShelf') },
-    timeline: {},
+    timeline: { allEpisodeCards: () => [] },
     ...extra
   };
   app.calls = calls;

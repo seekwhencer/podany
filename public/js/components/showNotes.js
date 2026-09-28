@@ -95,9 +95,16 @@ export class ShowNotes {
         }
         if (this.elements.showNotesContent) {
             const rawContent = ep.content || ep.description || '';
-            this.elements.showNotesContent.innerHTML = this.formatShowNotesHtml(rawContent);
+            const html = this.formatShowNotesHtml(rawContent);
 
-            this.elements.showNotesContent.querySelectorAll('.note-timestamp').forEach(btn => {
+            const scratch = document.createElement('div');
+            scratch.innerHTML = html;
+            const timestamps = Array.from(scratch.querySelectorAll('.note-timestamp'));
+            while (scratch.firstChild) {
+                this.elements.showNotesContent.appendChild(scratch.firstChild);
+            }
+
+            timestamps.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     const sec = parseFloat(btn.dataset.seconds);

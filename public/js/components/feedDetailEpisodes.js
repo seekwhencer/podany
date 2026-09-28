@@ -10,6 +10,7 @@ export class FeedDetailEpisodes {
         this.state = app.state;
         this.elements = app.elements;
         this.previewLoadingSet = new Set();
+        this.cards = new Map();
     }
 
     render(target, ctx) {
@@ -56,13 +57,15 @@ export class FeedDetailEpisodes {
             return;
         }
 
+        this.cards.clear();
         const frag = document.createDocumentFragment();
         episodes.forEach(ep => {
             const card = this.app.timeline.episodeCard.createEpisodeCard(ep);
             if (!ep.image) {
-                const art = card.querySelector('.episode-artwork');
+                const art = card.__els?.artwork;
                 if (art) art.remove();
             }
+            this.cards.set(String(ep.id), { el: card, els: card.__els });
             frag.appendChild(card);
         });
         list.appendChild(frag);

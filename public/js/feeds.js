@@ -227,8 +227,8 @@ export class FeedsManager {
         if (this.state.activeFeedDetailId === feedId) {
             this.state.activeFeedDetailId = null;
             if (this.elements.panelFeedDetail) this.elements.panelFeedDetail.classList.remove('active');
-            const feedsTab = document.getElementById('tab-feeds');
-            const feedsPanel = document.getElementById('panel-feeds');
+            const feedsTab = this.elements.tabFeeds;
+            const feedsPanel = this.elements.panelFeeds;
             this.elements.tabs.forEach(t => t.classList.remove('active'));
             this.elements.panels.forEach(p => p.classList.remove('active'));
             if (feedsTab) feedsTab.classList.add('active');
@@ -262,7 +262,7 @@ export class FeedsManager {
             });
         }
 
-        const modalCatChips = document.querySelectorAll('#modal-category-chips .category-chip');
+        const modalCatChips = this.elements.modalCategoryChips.querySelectorAll('.category-chip');
         modalCatChips.forEach(chip => {
             chip.addEventListener('click', () => {
                 const cat = chip.dataset.category;

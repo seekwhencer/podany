@@ -18,7 +18,7 @@ export class ModalManager {
   _currentView() {
     if (this.state.activeFeedDetailId) return { tab: null, feedTarget: this.state.activeFeedDetailId };
     const activeTab = this.elements.tabs ?
-      document.querySelector('.nav-tab.active')?.dataset.tab || 'timeline' : 'timeline';
+      ([...this.elements.tabs].find(t => t.classList.contains('active'))?.dataset.tab) || 'timeline' : 'timeline';
     return { tab: activeTab, feedTarget: null };
   }
 
@@ -40,9 +40,9 @@ export class ModalManager {
       this.state.activeFeedDetailId = null;
       if (this.elements.panelFeedDetail) this.elements.panelFeedDetail.classList.remove('active');
       const targetTab = tab || 'timeline';
-      const tabEl = document.getElementById(`tab-${targetTab}`);
+      const tabEl = this.elements.byId(`tab-${targetTab}`);
       if (tabEl) tabEl.classList.add('active');
-      const panelEl = document.getElementById(`panel-${targetTab}`);
+      const panelEl = this.elements.byId(`panel-${targetTab}`);
       if (panelEl) panelEl.classList.add('active');
       if (targetTab === 'settings' && this.elements.btnOpenSettings) {
         this.elements.btnOpenSettings.classList.add('is-active');

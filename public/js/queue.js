@@ -6,12 +6,13 @@ import { escapeHtml } from './utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from './config.js';
 
 export class QueueManager {
-  constructor(app) {
-    this.app = app;
-    this.state = app.state;
-    this.elements = app.elements;
-    this.storage = app.storage;
-  }
+    constructor(app) {
+        this.app = app;
+        this.state = app.state;
+        this.elements = app.elements;
+        this.storage = app.storage;
+        this.queueRows = new Map();
+    }
 
   loadQueue() {
     this.state.queue = this.storage.loadQueue();
@@ -63,10 +64,10 @@ export class QueueManager {
       this.elements.queueCountBadge.textContent = count === 1 ? '1 episode' : `${count} episodes`;
     }
 
-    const cards = document.querySelectorAll('.episode-card');
+    const cards = this.app.timeline.allEpisodeCards();
     cards.forEach(card => {
-      const id = card.dataset.id;
-      const qBtn = card.querySelector('.btn-queue-ep');
+      const id = String(card.el.dataset.id);
+      const qBtn = card.els ? card.els.queueBtn : null;
       if (qBtn) {
         const inQueue = (this.state.queue || []).some(ep => ep && String(ep.id) === id);
         if (inQueue) {
@@ -111,6 +112,7 @@ export class QueueManager {
     }
 
     this.elements.queueItemsContainer.innerHTML = '';
+    this.queueRows.clear();
     if (!Array.isArray(this.state.queue) || this.state.queue.length === 0) {
       this.elements.queueItemsContainer.innerHTML = `
         <div class="queue-empty-box">
@@ -193,26 +195,29 @@ export class QueueManager {
         draggedIndex = null;
       });
 
-      const handle = row.querySelector('.queue-drag-handle');
-      if (handle) {
+      const els = {};
+      els.handle = row.querySelector('.queue-drag-handle');
+      if (els.handle) {
         let touchCurrentRow = null;
-        handle.addEventListener('touchstart', () => {
+        els.handle.addEventListener('touchstart', () => {
           draggedIndex = idx;
           row.classList.add('is-dragging');
         }, { passive: true });
 
-        handle.addEventListener('touchmove', (e) => {
+        els.handle.addEventListener('touchmove', (e) => {
           const touchY = e.touches[0].clientY;
           const target = document.elementFromPoint(e.touches[0].clientX, touchY);
           const targetRow = target ? target.closest('.queue-item-row') : null;
-          document.querySelectorAll('.queue-item-row').forEach(r => r.classList.remove('drag-over-above', 'drag-over-below'));
+          for (const r of this.queueRows.values()) {
+            r.el.classList.remove('drag-over-above', 'drag-over-below');
+          }
           if (targetRow && targetRow !== row) {
             touchCurrentRow = targetRow;
             targetRow.classList.add('drag-over-above');
           }
         }, { passive: true });
 
-        handle.addEventListener('touchend', () => {
+        els.handle.addEventListener('touchend', () => {
           row.classList.remove('is-dragging');
           if (touchCurrentRow && draggedIndex !== null) {
             const toIdx = parseInt(touchCurrentRow.dataset.index, 10);
@@ -224,21 +229,30 @@ export class QueueManager {
               this.renderQueueModalContent();
             }
           }
-          document.querySelectorAll('.queue-item-row').forEach(r => r.classList.remove('drag-over-above', 'drag-over-below'));
+          for (const r of this.queueRows.values()) {
+            r.el.classList.remove('drag-over-above', 'drag-over-below');
+          }
           draggedIndex = null;
         });
       }
 
-      row.querySelector('.btn-queue-item-play').addEventListener('click', (e) => {
+      els.playBtn = row.querySelector('.btn-queue-item-play');
+      els.removeBtn = row.querySelector('.btn-queue-item-remove');
+
+      els.playBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.removeFromQueue(ep.id);
         this.app.playback.playEpisode(ep);
       });
 
-      row.querySelector('.btn-queue-item-remove').addEventListener('click', (e) => {
+      els.removeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.removeFromQueue(ep.id);
       });
+
+      row.__els = els;
+
+      this.queueRows.set(String(idx), { el: row, els });
 
       this.elements.queueItemsContainer.appendChild(row);
     });

@@ -9,6 +9,7 @@
     "dev": "node --watch server/index.js",
     "db:migrate": "node server/db/migrator.js",
     "build": "esbuild public/js/main.js --bundle --minify --outfile=public/dist/bundle.js --format=esm",
+    "lint": "eslint public/js",
     "migrate:data": "node server/db/migrate-data.js",
     "flush": "node server/db/flush.js",
     "test": "node --test"
@@ -32,6 +33,7 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.23.0",
+    "eslint": "^10.11.0"
   }
 }

@@ -255,10 +255,9 @@ export class LiveClient {
             at: Date.now()
         };
 
-        const ep = (this.state.allEpisodes || []).find(e => e && String(e.id) === String(episodeId));
-        const card = ep && ep.id ? document.querySelector(`.episode-card[data-id="${CSS.escape(String(ep.id))}"]`) : null;
-        if (!card) return;
-        const badge = card.querySelector('.ep-download-badge');
+        const entry = this.app.timeline.allEpisodeCards().find(c => String(c.el.dataset.id) === String(episodeId));
+        if (!entry) return;
+        const badge = entry.el.querySelector('.ep-download-badge');
         if (!badge) return;
         const data = this.state.downloadStatus[episodeId];
         badge.dataset.status = data.status;
@@ -287,15 +286,14 @@ export class LiveClient {
 
         const targetEp = (this.state.allEpisodes || []).find(e => e && String(e.id) === String(episodeId));
         const targetId = targetEp ? String(targetEp.id) : null;
-        const cards = document.querySelectorAll('.episode-card');
-        cards.forEach(card => {
-            if (targetId == null || card.dataset.id !== targetId) return;
-            const img = card.querySelector('.episode-artwork');
+        for (const card of this.app.timeline.allEpisodeCards()) {
+            if (targetId == null || String(card.el.dataset.id) !== targetId) continue;
+            const img = card.els ? card.els.artwork : null;
             if (img) {
                 img.src = artworkUrl(image, 'thumb');
                 img.onerror = () => { img.onerror = null; img.src = FALLBACK_ARTWORK; };
             }
-        });
+        }
 
         const cur = this.state.currentEpisode;
         if (cur && String(cur.id) === String(episodeId) && this.elements) {

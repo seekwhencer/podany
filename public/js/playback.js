@@ -12,6 +12,7 @@ export class PlaybackManager {
         this.elements = app.elements;
         this.config = app.config;
         this.storage = app.storage;
+        this.state.ytScriptTagAdded = false;
     }
 
     // ── YouTube ─────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ export class PlaybackManager {
 
     initYouTubePlayer() {
         if (this.state.ytPlayer || !window.YT || !window.YT.Player) return;
-        const playerTarget = document.getElementById('yt-player');
+        const playerTarget = this.elements.byId('yt-player');
         if (!playerTarget) return;
 
         this.state.ytPlayer = new YT.Player('yt-player', {
@@ -255,6 +256,10 @@ export class PlaybackManager {
         }
     }
 
+    allEpisodeCards() {
+        return this.app.timeline.allEpisodeCards();
+    }
+
     // ── Playback control ────────────────────────────────────────────────────
 
     isEnginePlaying() {
@@ -355,7 +360,7 @@ export class PlaybackManager {
                 if (this.state.ytPlayer.playVideo) this.state.ytPlayer.playVideo();
                 if (this.state.ytPlayer.setPlaybackRate) this.state.ytPlayer.setPlaybackRate(this.state.playbackSpeed);
             } else if (window.YT && window.YT.Player) {
-                const container = document.getElementById('yt-player-container');
+                const container = this.elements.ytPlayerContainer;
                 if (container) {
                     container.innerHTML = '<div id="yt-player"></div>';
                 }
@@ -397,10 +402,11 @@ export class PlaybackManager {
                 this.state.ytPlayer = new YT.Player('yt-player', playerConfig);
             } else {
                 this.state.pendingYouTubePlay = { episode, startTime };
-                if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+                if (!this.state.ytScriptTagAdded) {
                     const s = document.createElement('script');
                     s.src = 'https://www.youtube.com/iframe_api';
                     document.head.appendChild(s);
+                    this.state.ytScriptTagAdded = true;
                 }
             }
         } else {
@@ -486,10 +492,12 @@ export class PlaybackManager {
             }
 
             if (this.state.currentEpisode) {
-                const activeCards = document.querySelectorAll(`.episode-card[data-id="${CSS.escape(this.state.currentEpisode.id)}"]`);
+                const activeCards = this.allEpisodeCards();
                 activeCards.forEach(card => {
-                    let track = card.querySelector('.ep-progress-track');
-                    let fill = card.querySelector('.ep-progress-fill');
+                    if (String(card.el.dataset.id) !== String(this.state.currentEpisode.id)) return;
+                    const els = card.els || {};
+                    let track = els.progressTrack;
+                    let fill = els.fill;
                     if (!track && current > 2) {
                         track = document.createElement('div');
                         track.className = 'ep-progress-track';
@@ -497,23 +505,26 @@ export class PlaybackManager {
                         fill = document.createElement('div');
                         fill.className = 'ep-progress-fill';
                         track.appendChild(fill);
-                        const footer = card.querySelector('.episode-footer');
+                        const footer = els.episodeFooter;
                         if (footer) {
-                            card.insertBefore(track, footer);
+                            card.el.insertBefore(track, footer);
+                            els.progressTrack = track;
+                            els.fill = fill;
                             this.app.timeline.setupProgressTrackInteractivity(track, card, this.state.currentEpisode);
                         }
                     }
                     if (fill) {
                         fill.style.width = `${Math.min(100, Math.max(1, pct))}%`;
                     }
-                    let resumeBadge = card.querySelector('.ep-resume-time');
+                    let resumeBadge = els.resumeBadge;
                     if (!resumeBadge && current > 2) {
-                        const meta = card.querySelector('.episode-meta');
+                        const meta = els.episodeMeta;
                         if (meta) {
                             resumeBadge = document.createElement('span');
                             resumeBadge.className = 'ep-resume-time';
                             resumeBadge.title = 'Click to resume playback';
                             meta.appendChild(resumeBadge);
+                            els.resumeBadge = resumeBadge;
                             resumeBadge.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 this.toggleEpisodePlayback(this.state.currentEpisode);
@@ -555,9 +566,9 @@ export class PlaybackManager {
                 if (matchAll) matchAll.duration = formatted;
                 const matchFiltered = this.state.filteredEpisodes.find(e => e.guid === this.state.currentEpisode.guid);
                 if (matchFiltered) matchFiltered.duration = formatted;
-                const card = document.querySelector(`.episode-card[data-id="${CSS.escape(this.state.currentEpisode.id)}"]`);
-                if (card) {
-                    const durBadge = card.querySelector('.episode-duration');
+                const match = this.allEpisodeCards().find(c => String(c.el.dataset.id) === String(this.state.currentEpisode.id));
+                if (match) {
+                    const durBadge = match.el.querySelector('.episode-duration');
                     if (durBadge && (!durBadge.textContent || durBadge.textContent === '0:00')) {
                         durBadge.textContent = formatted;
                     }
@@ -705,13 +716,13 @@ export class PlaybackManager {
             }
         }
 
-        const cards = document.querySelectorAll('.episode-card');
+        const cards = this.allEpisodeCards();
         cards.forEach(card => {
-            const id = card.dataset.id;
-            const btn = card.querySelector('.btn-play-ep');
+            const id = String(card.el.dataset.id);
+            const btn = card.els ? card.els.playBtn : null;
             if (!btn) return;
             if (this.state.currentEpisode && String(this.state.currentEpisode.id) === id) {
-                card.classList.add('playing');
+                card.el.classList.add('playing');
                 if (isLoading) {
                     btn.innerHTML = this.config.cardIcons.SPINNER;
                     btn.title = 'Loading...';
@@ -723,35 +734,39 @@ export class PlaybackManager {
                     btn.title = 'Play';
                 }
             } else {
-                card.classList.remove('playing');
+                card.el.classList.remove('playing');
                 btn.innerHTML = this.config.cardIcons.PLAY;
                 btn.title = 'Play';
             }
         });
 
-        const recentRows = document.querySelectorAll('.recent-ep-row');
-        recentRows.forEach(row => {
-            const guid = row.dataset.guid;
-            const btn = row.querySelector('.btn-recent-play');
-            if (!btn) return;
-            if (this.state.currentEpisode && this.state.currentEpisode.guid === guid) {
-                row.classList.add('active');
-                if (isLoading) {
-                    btn.innerHTML = `<span class="spinner" style="width: 10px; height: 10px;"></span>`;
-                    btn.classList.remove('is-playing');
-                } else if (isPlaying) {
-                    btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-                    btn.classList.add('is-playing');
+        const grid = this.app.feeds.grid;
+        const feedCards = grid ? grid.feedCards.values() : [];
+        for (const card of feedCards) {
+            const recentRows = card.els ? card.els.recentRows : [];
+            for (const row of recentRows) {
+                const guid = row.dataset.guid;
+                const btn = row.querySelector('.btn-recent-play');
+                if (!btn) continue;
+                if (this.state.currentEpisode && this.state.currentEpisode.guid === guid) {
+                    row.classList.add('active');
+                    if (isLoading) {
+                        btn.innerHTML = `<span class="spinner" style="width: 10px; height: 10px;"></span>`;
+                        btn.classList.remove('is-playing');
+                    } else if (isPlaying) {
+                        btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+                        btn.classList.add('is-playing');
+                    } else {
+                        btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+                        btn.classList.remove('is-playing');
+                    }
                 } else {
+                    row.classList.remove('active');
                     btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
                     btn.classList.remove('is-playing');
                 }
-            } else {
-                row.classList.remove('active');
-                btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
-                btn.classList.remove('is-playing');
             }
-        });
+        }
     }
 
     updatePlayerUI(isPlaying) {

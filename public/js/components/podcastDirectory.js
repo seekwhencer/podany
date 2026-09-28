@@ -109,17 +109,22 @@ export class PodcastDirectory {
                 this.app.feeds.openFeedDetail(item.feedUrl);
             });
 
+            const els = {};
             if (!isSubbed) {
-                const subBtn = card.querySelector('.btn-sub-dir');
-                subBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.app.feeds.addFeed(item.feedUrl, item.collectionName || item.trackName, item.artworkUrl600 || item.artworkUrl100);
-                    subBtn.textContent = 'Subscribed';
-                    subBtn.classList.remove('btn-primary');
-                    subBtn.classList.add('btn-secondary');
-                    subBtn.disabled = true;
-                });
+                els.subBtn = card.querySelector('.btn-sub-dir');
+                if (els.subBtn) {
+                    els.subBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.app.feeds.addFeed(item.feedUrl, item.collectionName || item.trackName, item.artworkUrl600 || item.artworkUrl100);
+                        els.subBtn.textContent = 'Subscribed';
+                        els.subBtn.classList.remove('btn-primary');
+                        els.subBtn.classList.add('btn-secondary');
+                        els.subBtn.disabled = true;
+                    });
+                }
             }
+
+            card.__els = els;
 
             s.listEl.appendChild(card);
         });

@@ -106,57 +106,68 @@ export class EpisodeCard {
       </div>
     `;
 
-        const descEl = card.querySelector('.episode-desc');
-        if (descEl) {
-            descEl.addEventListener('click', (e) => {
+        const els = {};
+        els.artwork = card.querySelector('.episode-artwork');
+        els.desc = card.querySelector('.episode-desc');
+        els.title = card.querySelector('.episode-title');
+        els.podName = card.querySelector('.episode-podcast-name');
+        els.playBtn = card.querySelector('.btn-play-ep');
+        els.queueBtn = card.querySelector('.btn-queue-ep');
+        els.markBtn = card.querySelector('.btn-mark-played');
+        els.progressTrack = card.querySelector('.ep-progress-track');
+        els.fill = els.progressTrack ? els.progressTrack.querySelector('.ep-progress-fill') : null;
+        els.resumeBadge = card.querySelector('.ep-resume-time');
+        els.episodeFooter = card.querySelector('.episode-footer');
+        els.episodeMeta = card.querySelector('.episode-meta');
+
+        if (els.desc) {
+            els.desc.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.app.timeline.openShowNotes(ep);
             });
         }
 
-        const titleEl = card.querySelector('.episode-title');
-        if (titleEl) {
-            titleEl.addEventListener('click', (e) => {
+        if (els.title) {
+            els.title.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.app.timeline.openShowNotes(ep);
             });
         }
 
-        const podNameEl = card.querySelector('.episode-podcast-name');
-        if (podNameEl) {
-            podNameEl.addEventListener('click', (e) => {
+        if (els.podName) {
+            els.podName.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.app.feeds.openFeedDetail(ep.subscriptionId || ep.feedUrl);
             });
         }
 
-        card.querySelector('.btn-play-ep').addEventListener('click', (e) => {
+        els.playBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.app.playback.toggleEpisodePlayback(ep);
         });
 
-        card.querySelector('.btn-queue-ep').addEventListener('click', (e) => {
+        els.queueBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.app.queue.toggleEpisodeQueue(ep);
         });
 
-        card.querySelector('.btn-mark-played').addEventListener('click', (e) => {
+        els.markBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.app.timeline.toggleMarkPlayed(ep);
         });
 
-        const progressTrack = card.querySelector('.ep-progress-track');
-        if (progressTrack) {
-            this.app.timeline.setupProgressTrackInteractivity(progressTrack, card, ep);
+        if (els.progressTrack) {
+            this.app.timeline.setupProgressTrackInteractivity(els.progressTrack, card, ep);
         }
 
-        const resumeBadge = card.querySelector('.ep-resume-time');
-        if (resumeBadge) {
-            resumeBadge.addEventListener('click', (e) => {
+        if (els.resumeBadge) {
+            els.resumeBadge.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.app.playback.toggleEpisodePlayback(ep);
             });
         }
+
+        card.__els = els;
 
         return card;
     }

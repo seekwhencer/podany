@@ -10,6 +10,7 @@ export class FeedGrid {
         this.state = app.state;
         this.elements = app.elements;
         this.feedsSearchDebounceTimer = null;
+        this.feedCards = new Map();
     }
 
     updateFeedCountUI() {
@@ -84,8 +85,11 @@ export class FeedGrid {
             return;
         }
 
+        this.feedCards.clear();
         feedsToRender.forEach(id => {
-            grid.appendChild(this.app.feeds.card.renderFeedCard(id));
+            const card = this.app.feeds.card.renderFeedCard(id);
+            this.feedCards.set(String(id), { el: card, els: card.__els });
+            grid.appendChild(card);
         });
     }
 
@@ -116,24 +120,17 @@ export class FeedGrid {
         </div>
         <div class="starter-suggestions-section">
           <div class="starter-suggestions-title">Discover Science, Planet & Climate shows:</div>
-          <div class="starter-suggestions-grid">
-            <div class="starter-suggestion-chip" data-feed="https://feeds.megaphone.fm/NATIONALAERONAUTICSANDSPACEADMINISTRATION8162188566"><span class="starter-chip-name">NASA's Curious Universe</span><span class="starter-chip-add">+ Follow</span></div>
-            <div class="starter-suggestion-chip" data-feed="https://feeds.simplecast.com/EmVW7VGp"><span class="starter-chip-name">Radiolab</span><span class="starter-chip-add">+ Follow</span></div>
-            <div class="starter-suggestion-chip" data-feed="https://www.deutschlandfunk.de/forschung-aktuell-102.xml"><span class="starter-chip-name">Forschung aktuell (DLF)</span><span class="starter-chip-add">+ Follow</span></div>
-            <div class="starter-suggestion-chip" data-feed="https://www.ndr.de/nachrichten/info/podcast4696.xml"><span class="starter-chip-name">ARD Klima-Update</span><span class="starter-chip-add">+ Follow</span></div>
-            <div class="starter-suggestion-chip" data-feed="https://feeds.simplecast.com/NM3_bR51"><span class="starter-chip-name">ZEIT WISSEN</span><span class="starter-chip-add">+ Follow</span></div>
-            <div class="starter-suggestion-chip" data-feed="https://podcasts.files.bbci.co.uk/w13xtvb6.rss"><span class="starter-chip-name">The Climate Question (BBC)</span><span class="starter-chip-add">+ Follow</span></div>
-          </div>
+          <div class="starter-suggestions-grid" id="feeds-empty-starter-grid"></div>
         </div>
       </div>
     `;
     }
 
     wireFeedsEmptyStateEvents() {
-        const quickForm = document.getElementById('feeds-empty-quick-form');
-        const quickInput = document.getElementById('feeds-empty-quick-input');
-        const quickSubmit = document.getElementById('btn-feeds-empty-quick-submit');
-        const quickResults = document.getElementById('feeds-empty-quick-results');
+        const quickForm = this.elements.byId('feeds-empty-quick-form');
+        const quickInput = this.elements.byId('feeds-empty-quick-input');
+        const quickSubmit = this.elements.byId('btn-feeds-empty-quick-submit');
+        const quickResults = this.elements.byId('feeds-empty-quick-results');
 
         if (quickInput && quickForm) {
             quickInput.addEventListener('input', () => {
@@ -179,19 +176,40 @@ export class FeedGrid {
             });
         }
 
-        document.getElementById('btn-feeds-empty-opml')?.addEventListener('click', () => {
+        this.elements.byId('btn-feeds-empty-opml')?.addEventListener('click', () => {
             this.elements.opmlFileInput?.click();
         });
 
-        const chips = this.elements.feedsGrid.querySelectorAll('.starter-suggestion-chip');
-        chips.forEach(chip => {
+        const starterGrid = this.elements.byId('feeds-empty-starter-grid');
+        if (starterGrid) {
+            this._buildStarterChips().forEach(chip => starterGrid.appendChild(chip));
+        }
+    }
+
+    _buildStarterChips() {
+        const starters = [
+            { feed: 'https://feeds.megaphone.fm/NATIONALAERONAUTICSANDSPACEADMINISTRATION8162188566', name: "NASA's Curious Universe" },
+            { feed: 'https://feeds.simplecast.com/EmVW7VGp', name: 'Radiolab' },
+            { feed: 'https://www.deutschlandfunk.de/forschung-aktuell-102.xml', name: 'Forschung aktuell (DLF)' },
+            { feed: 'https://www.ndr.de/nachrichten/info/podcast4696.xml', name: 'ARD Klima-Update' },
+            { feed: 'https://feeds.simplecast.com/NM3_bR51', name: 'ZEIT WISSEN' },
+            { feed: 'https://podcasts.files.bbci.co.uk/w13xtvb6.rss', name: 'The Climate Question (BBC)' }
+        ];
+        return starters.map(item => {
+            const chip = document.createElement('div');
+            chip.className = 'starter-suggestion-chip';
+            chip.dataset.feed = item.feed;
+            chip.innerHTML = `<span class="starter-chip-name">${escapeHtml(item.name)}</span><span class="starter-chip-add">+ Follow</span>`;
+            const els = {};
+            els.addSpan = chip.querySelector('.starter-chip-add');
             chip.addEventListener('click', () => {
                 const feedUrl = chip.dataset.feed;
                 if (!feedUrl) return;
-                const addSpan = chip.querySelector('.starter-chip-add');
-                if (addSpan) addSpan.textContent = 'Adding...';
+                if (els.addSpan) els.addSpan.textContent = 'Adding...';
                 this.app.feeds.addFeed(feedUrl);
             });
+            chip.__els = els;
+            return chip;
         });
     }
 }
