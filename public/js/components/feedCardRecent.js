@@ -4,7 +4,7 @@
 
 import { formatDurationCompact } from '../utils.js';
 
-export class FeedCardRecent {
+export class FeedCardRecentRenderer {
     constructor(app) {
         this.app = app;
         this.state = app.state;
@@ -119,4 +119,4 @@ export class FeedCardRecent {
     }
 }
 
-export default FeedCardRecent;
+export default FeedCardRecentRenderer;

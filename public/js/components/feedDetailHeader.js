@@ -5,7 +5,7 @@
 import { escapeHtml } from '../utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from '../config.js';
 
-export class FeedDetailHeader {
+export class FeedDetailHeaderRenderer {
     constructor(app) {
         this.app = app;
         this.state = app.state;
@@ -107,4 +107,4 @@ export class FeedDetailHeader {
     }
 }
 
-export default FeedDetailHeader;
+export default FeedDetailHeaderRenderer;

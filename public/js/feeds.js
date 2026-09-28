@@ -3,7 +3,6 @@
 // feeds grid + feed detail, feed add/remove, and OPML import/export.
 
 import FeedGrid from './components/feedsGrid.js';
-import FeedCard from './components/feedCard.js';
 import PodcastDirectory from './components/podcastDirectory.js';
 import FeedDetail from './components/feedDetail.js';
 import Opml from './components/opml.js';
@@ -17,7 +16,6 @@ export class FeedsManager {
         this.api = app.api;
         this.storage = app.storage;
         this.grid = new FeedGrid(this.app);
-        this.card = new FeedCard(this.app);
         this.directory = new PodcastDirectory(this.app);
         this.detail = new FeedDetail(this.app);
         this.opml = new Opml(this.app);
@@ -126,7 +124,7 @@ export class FeedsManager {
         }
 
         this.state.downloadingFeeds.delete(id);
-        this.card.updateFeedCard(id);
+        this.grid.feedCards.get(String(id))?.update();
     }
 
     async fetchSingleFeed(target, incomingEpisodes, updatedMetadata, isId = false) {

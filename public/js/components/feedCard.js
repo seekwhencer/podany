@@ -1,32 +1,49 @@
 // feedCard.js — Podany FeedCard
-// Renders a single subscribed-feed card (artwork, description, recent-episode
-// section) and its unsubscribe/play interactions.
+// A single subscribed-feed card (Muster A: one stable instance owns this.el).
+// Composes the recent-episode section via FeedCardRecentRenderer.
 
 import { escapeHtml } from '../utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from '../config.js';
-import FeedCardRecent from './feedCardRecent.js';
+import FeedCardRecentRenderer from './feedCardRecent.js';
 
 export class FeedCard {
-    constructor(app) {
+    constructor(app, id = null) {
         this.app = app;
         this.state = app.state;
         this.elements = app.elements;
-        this.recent = new FeedCardRecent(this.app);
+        this.config = app.config;
+        this.api = app.api;
+        this.storage = app.storage;
+        this.id = id;
+        this.recent = new FeedCardRecentRenderer(this.app);
+
+        if (id != null) {
+            this.el = document.createElement('div');
+            this.el.className = 'feed-card';
+            this.el.dataset.feedId = id;
+
+            this.el.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-feed-unsubscribe')) {
+                    e.stopPropagation();
+                    this.app.feeds.promptRemoveFeed(this.id);
+                    return;
+                }
+                if (e.target.closest('.recent-ep-row')) return;
+                this.app.feeds.openFeedDetail(this.id);
+            });
+
+            this._build();
+        }
     }
 
-    renderFeedCard(id) {
+    _build() {
+        const id = this.id;
         const meta = this.state.feedMetadata[id] || {};
         const url = this.state.feedUrlById[id] || '';
-        const card = document.createElement('div');
-        card.className = 'feed-card';
-        card.dataset.feedId = id;
-
-        const rawDesc = meta.description || '';
-        const plainDesc = rawDesc.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
-
+        const plainDesc = (meta.description || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
         const recentData = this.recent.collectEpisodes(id);
 
-        card.innerHTML = `
+        this.el.innerHTML = `
       <div class="feed-header">
         <img class="feed-art" src="${artworkUrl(meta.image, 'large')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
         <div class="feed-info">
@@ -44,36 +61,21 @@ export class FeedCard {
     `;
 
         const recentSection = this.recent.renderRecentSection(id, recentData);
-        if (recentSection) card.appendChild(recentSection);
+        if (recentSection) this.el.appendChild(recentSection);
 
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-feed-unsubscribe') || e.target.closest('.recent-ep-row')) return;
-            this.app.feeds.openFeedDetail(id);
-        });
-
-        const els = {};
-        els.unsubBtn = card.querySelector('.btn-feed-unsubscribe');
-        els.recentRows = Array.from(card.querySelectorAll('.recent-ep-row'));
-
-        if (els.unsubBtn) {
-            els.unsubBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.app.feeds.promptRemoveFeed(id);
-            });
-        }
-
-        card.__els = els;
-
-        return card;
+        this.el.__els = {
+            unsubBtn: this.el.querySelector('.btn-feed-unsubscribe'),
+            recentRows: Array.from(this.el.querySelectorAll('.recent-ep-row'))
+        };
+        this.recentRows = this.el.__els.recentRows;
     }
 
-    updateFeedCard(id) {
-        const grid = this.elements.feedsGrid;
-        if (!grid) return;
-        const existing = grid.querySelector(`[data-feed-id="${CSS.escape(String(id))}"]`);
-        if (!existing) return;
-        existing.replaceWith(this.renderFeedCard(id));
-        this.app.feeds.grid.updateFeedCountUI();
+    update() {
+        this._build();
+    }
+
+    destroy() {
+        this.el?.remove();
     }
 }
 

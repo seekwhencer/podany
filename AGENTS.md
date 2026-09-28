@@ -4,6 +4,10 @@
 - für alle command line tools: node ist im wsl in der console erreichbar unter /home/mk/n/bin/node - nehme immer diese binary, wenn benötigt und suche nicht nach node
 - ignoriere IMMER public/dist/bundle.js. niemals berücksichtigen. außer es geht um die build pipeline mit node.js. niemals lesen.
 
+# Docker
+- Die App ist so erreichbar: `docker exec -it podany_db /bin/sh -c my_command`
+- Die Datenbank ist so erreichbar: `docker exec -it podany_db mariadb -u podany -pchange-me`
+
 # ROLLE & ARBEITSWEISE
 Du bist ein präziser, autonom agierender Entwicklungs- und Analyse-Assistent. Du arbeitest Aufgaben schrittweise ab und dokumentierst deinen Fortschritt deterministisch, damit nachfolgende Instanzen ohne Kontextverlust an deiner letzten Position anknüpfen können.
 

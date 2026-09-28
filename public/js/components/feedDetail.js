@@ -3,16 +3,16 @@
 // follow/unsubscribe, copy RSS) and the episode list (search filter + preview
 // fetch for unsubscribed feeds).
 
-import FeedDetailHeader from './feedDetailHeader.js';
-import FeedDetailEpisodes from './feedDetailEpisodes.js';
+import FeedDetailHeaderRenderer from './feedDetailHeader.js';
+import FeedDetailEpisodesRenderer from './feedDetailEpisodes.js';
 
 export class FeedDetail {
     constructor(app) {
         this.app = app;
         this.state = app.state;
         this.elements = app.elements;
-        this.header = new FeedDetailHeader(app);
-        this.episodes = new FeedDetailEpisodes(app);
+        this.header = new FeedDetailHeaderRenderer(app);
+        this.episodes = new FeedDetailEpisodesRenderer(app);
     }
 
     openFeedDetail(target) {

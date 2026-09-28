@@ -743,7 +743,7 @@ export class PlaybackManager {
         const grid = this.app.feeds.grid;
         const feedCards = grid ? grid.feedCards.values() : [];
         for (const card of feedCards) {
-            const recentRows = card.els ? card.els.recentRows : [];
+            const recentRows = card.recentRows ? card.recentRows : [];
             for (const row of recentRows) {
                 const guid = row.dataset.guid;
                 const btn = row.querySelector('.btn-recent-play');

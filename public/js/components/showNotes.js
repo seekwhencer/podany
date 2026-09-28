@@ -4,10 +4,8 @@
 
 import {
     escapeHtml,
-    formatTime,
     formatHumanRelativeDate,
-    formatEpisodeDuration,
-    parseDurationSeconds
+    formatEpisodeDuration
 } from '../utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from '../config.js';
 
@@ -96,6 +94,8 @@ export class ShowNotes {
         if (this.elements.showNotesContent) {
             const rawContent = ep.content || ep.description || '';
             const html = this.formatShowNotesHtml(rawContent);
+
+            this.elements.showNotesContent.textContent = '';
 
             const scratch = document.createElement('div');
             scratch.innerHTML = html;

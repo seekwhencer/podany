@@ -3,6 +3,7 @@
 // the timeline skeleton placeholder.
 
 import { escapeHtml } from '../utils.js';
+import FeedCard from './feedCard.js';
 
 export class FeedGrid {
     constructor(app) {
@@ -87,9 +88,9 @@ export class FeedGrid {
 
         this.feedCards.clear();
         feedsToRender.forEach(id => {
-            const card = this.app.feeds.card.renderFeedCard(id);
-            this.feedCards.set(String(id), { el: card, els: card.__els });
-            grid.appendChild(card);
+            const card = new FeedCard(this.app, id);
+            this.feedCards.set(String(id), card);
+            grid.appendChild(card.el);
         });
     }
 

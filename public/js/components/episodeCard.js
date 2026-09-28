@@ -11,7 +11,7 @@ import {
 } from '../utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from '../config.js';
 
-export class EpisodeCard {
+export class EpisodeCardRenderer {
     constructor(app) {
         this.app = app;
         this.state = app.state;
@@ -173,4 +173,4 @@ export class EpisodeCard {
     }
 }
 
-export default EpisodeCard;
+export default EpisodeCardRenderer;

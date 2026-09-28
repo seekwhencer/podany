@@ -8,7 +8,7 @@ import {
     formatCompactDate
 } from './utils.js';
 import { FALLBACK_ARTWORK, artworkUrl } from './config.js';
-import EpisodeCard from './components/episodeCard.js';
+import EpisodeCardRenderer from './components/episodeCard.js';
 import ShowNotes from './components/showNotes.js';
 
 export class TimelineManager {
@@ -17,7 +17,7 @@ export class TimelineManager {
         this.state = app.state;
         this.elements = app.elements;
         this.config = app.config;
-        this.episodeCard = new EpisodeCard(this.app);
+        this.episodeCardRenderer = new EpisodeCardRenderer(this.app);
         this.showNotes = new ShowNotes(this.app);
         this.sentinelObserver = null;
         this.emptySearchDebounceTimer = null;
@@ -220,7 +220,7 @@ export class TimelineManager {
         const visibleEps = this.state.continueCollapsed ? inProgressEps.slice(0, capacity) : inProgressEps;
         this.continueCards.clear();
         visibleEps.forEach(ep => {
-            const card = this.episodeCard.createEpisodeCard(ep);
+            const card = this.episodeCardRenderer.createEpisodeCard(ep);
             this.continueCards.set(String(ep.id), { el: card, els: card.__els });
             this.elements.continueGrid.appendChild(card);
         });
@@ -322,7 +322,7 @@ export class TimelineManager {
         this.episodeCards.clear();
         const frag = document.createDocumentFragment();
         batch.forEach(ep => {
-            const card = this.episodeCard.createEpisodeCard(ep);
+            const card = this.episodeCardRenderer.createEpisodeCard(ep);
             this.episodeCards.set(String(ep.id), { el: card, els: card.__els });
             frag.appendChild(card);
         });

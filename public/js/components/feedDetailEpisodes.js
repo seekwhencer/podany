@@ -4,7 +4,7 @@
 
 import { escapeHtml } from '../utils.js';
 
-export class FeedDetailEpisodes {
+export class FeedDetailEpisodesRenderer {
     constructor(app) {
         this.app = app;
         this.state = app.state;
@@ -60,7 +60,7 @@ export class FeedDetailEpisodes {
         this.cards.clear();
         const frag = document.createDocumentFragment();
         episodes.forEach(ep => {
-            const card = this.app.timeline.episodeCard.createEpisodeCard(ep);
+            const card = this.app.timeline.episodeCardRenderer.createEpisodeCard(ep);
             if (!ep.image) {
                 const art = card.__els?.artwork;
                 if (art) art.remove();
@@ -72,4 +72,4 @@ export class FeedDetailEpisodes {
     }
 }
 
-export default FeedDetailEpisodes;
+export default FeedDetailEpisodesRenderer;
