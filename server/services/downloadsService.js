@@ -168,14 +168,18 @@ export class DownloadsService {
 
     async startDownload(record) {
         if (!record) throw new Error('Download record not found.');
+        const filePath = path.join(this.storageDir, `${record.id}.mp3`);
+        const filename = this._filenameFor(filePath);
         const audioUrl = record.audioUrl || record.audio_url;
         const dlEvent = {
             id: record.id,
             episodeId: record.id,
             subscriptionId: record.subscription_id,
             title: record.title,
-            duration: record.duration
+            duration: record.duration,
+            filename: filename,
         };
+
         const wsEvent = {
             id: record.id,
             episodeId: record.id,
@@ -188,8 +192,7 @@ export class DownloadsService {
             return this.downloads.findById(record.id);
         }
 
-        const filePath = path.join(this.storageDir, `${record.id}.mp3`);
-        const filename = this._filenameFor(filePath);
+
         try {
             const response = await this.fetchImpl(audioUrl, {
                 headers: { 'User-Agent': 'Podany/1.0 (+SelfHosted)' }
@@ -209,14 +212,15 @@ export class DownloadsService {
             const totalBytes = this._contentLength(response);
             const sink = createWriteStream(filePath);
             try {
-                this._emit(EVENT_DOWNLOAD_PROGRESS, wsEvent, record.user_id);
+                this._emit(EVENT_DOWNLOAD_PROGRESS, dlEvent, record.user_id);
                 for await (const chunk of response.body) {
                     sink.write(chunk);
                     size += Buffer.byteLength(chunk);
 
-                    if (Number.isFinite(totalBytes) && totalBytes > 0) {
-                        //this._emit(EVENT_DOWNLOAD_PROGRESS, { ...dlEvent, progress: Math.min(99, Math.round((size / totalBytes) * 100)) }, record.user_id);
-                    }
+                    // no!!!! not per progress... wtf
+                    /*if (Number.isFinite(totalBytes) && totalBytes > 0) {
+                        this._emit(EVENT_DOWNLOAD_PROGRESS, { ...dlEvent, progress: Math.min(99, Math.round((size / totalBytes) * 100)) }, record.user_id);
+                    }*/
                 }
             } finally {
                 await new Promise((resolve, reject) => {

@@ -139,7 +139,7 @@ export class QueueManager {
         <img class="queue-item-artwork" src="${artworkUrl(ep.image, 'thumb')}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_ARTWORK}';">
         <div class="queue-item-info">
           <div class="queue-item-title">${escapeHtml(ep.title)}</div>
-          <div class="queue-item-meta">${escapeHtml(ep.podcastTitle)}${ep.duration ? ` • ${escapeHtml(ep.duration)}` : ''}</div>
+          <div class="queue-item-meta">${escapeHtml(ep.podcastTitle)}${ep.duration ? ` ${escapeHtml(ep.duration)}` : ''}</div>
         </div>
         <div class="queue-item-actions">
           <button class="btn-queue-item-play" title="Play Now">

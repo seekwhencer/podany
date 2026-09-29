@@ -114,6 +114,7 @@ export class FeedCardRecentRenderer {
         div.innerHTML = `
           <div class="spinner" style="margin: 0 auto 0.75rem auto; width: 28px; height: 28px; border: 3px solid var(--border-light); border-top-color: var(--text-primary); border-radius: 50%;"></div>
           <p class="feed-downloading-text">... downloading episodes</p>
+          <div class="feed-downloading-progress"></div>
         `;
         return div;
     }

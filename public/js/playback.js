@@ -532,7 +532,7 @@ export class PlaybackManager {
                         }
                     }
                     if (resumeBadge) {
-                        resumeBadge.textContent = `• Resumes at ${formatTime(current)}`;
+                        resumeBadge.textContent = `Resumes at ${formatTime(current)}`;
                     }
                 });
             }

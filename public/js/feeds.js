@@ -19,6 +19,8 @@ export class FeedsManager {
         this.directory = new PodcastDirectory(this.app);
         this.detail = new FeedDetail(this.app);
         this.opml = new Opml(this.app);
+        this._refreshActive = false;
+        this._refreshQueued = false;
     }
 
     // ── UI delegators (implementations live in the sub-components) ──────────
@@ -58,6 +60,23 @@ export class FeedsManager {
     // ── Fetching ────────────────────────────────────────────────────────────
 
     async refreshAllFeeds() {
+        if (this._refreshActive) {
+            this._refreshQueued = true;
+            return;
+        }
+        this._refreshActive = true;
+        try {
+            await this._refreshAllFeedsRun();
+        } finally {
+            this._refreshActive = false;
+            if (this._refreshQueued) {
+                this._refreshQueued = false;
+                await this.refreshAllFeeds();
+            }
+        }
+    }
+
+    async _refreshAllFeedsRun() {
         if (this.state.feeds.length === 0) {
             this.state.allEpisodes = [];
             this.state.filteredEpisodes = [];
@@ -81,20 +100,18 @@ export class FeedsManager {
         const fetchPromises = this.state.feeds.map(id => this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata, true));
         await Promise.allSettled(fetchPromises);
 
-        if (incomingEpisodes.length > 0) {
-            const epMap = new Map();
-            incomingEpisodes.forEach(ep => {
-                if (ep && ep.guid) epMap.set(ep.guid, ep);
-            });
-            this.state.allEpisodes.forEach(ep => {
-                if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.subscriptionId)) {
-                    epMap.set(ep.guid, ep);
-                }
-            });
-            this.state.allEpisodes = Array.from(epMap.values());
-            this.state.feedMetadata = updatedMetadata;
-            this.storage.saveCache(this.state.allEpisodes, this.state.feedMetadata, this.config.maxCacheEpisodes);
-        }
+        const epMap = new Map();
+        incomingEpisodes.forEach(ep => {
+            if (ep && ep.guid) epMap.set(ep.guid, ep);
+        });
+        this.state.allEpisodes.forEach(ep => {
+            if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.subscriptionId)) {
+                epMap.set(ep.guid, ep);
+            }
+        });
+        this.state.allEpisodes = Array.from(epMap.values());
+        this.state.feedMetadata = updatedMetadata;
+        this.storage.saveCache(this.state.allEpisodes, this.state.feedMetadata, this.config.maxCacheEpisodes);
 
         this.app.modal.hideStatus();
         this.app.timeline.processAndSortEpisodes();
@@ -108,20 +125,18 @@ export class FeedsManager {
 
         await this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata, true);
 
-        if (incomingEpisodes.length > 0) {
-            const epMap = new Map();
-            incomingEpisodes.forEach(ep => {
-                if (ep && ep.guid) epMap.set(ep.guid, ep);
-            });
-            this.state.allEpisodes.forEach(ep => {
-                if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.subscriptionId)) {
-                    epMap.set(ep.guid, ep);
-                }
-            });
-            this.state.allEpisodes = Array.from(epMap.values());
-            this.state.feedMetadata = updatedMetadata;
-            this.storage.saveCache(this.state.allEpisodes, this.state.feedMetadata, this.config.maxCacheEpisodes);
-        }
+        const epMap = new Map();
+        incomingEpisodes.forEach(ep => {
+            if (ep && ep.guid) epMap.set(ep.guid, ep);
+        });
+        this.state.allEpisodes.forEach(ep => {
+            if (ep && ep.guid && !epMap.has(ep.guid) && this.state.feeds.includes(ep.subscriptionId)) {
+                epMap.set(ep.guid, ep);
+            }
+        });
+        this.state.allEpisodes = Array.from(epMap.values());
+        this.state.feedMetadata = updatedMetadata;
+        this.storage.saveCache(this.state.allEpisodes, this.state.feedMetadata, this.config.maxCacheEpisodes);
 
         this.state.downloadingFeeds.delete(id);
         this.grid.feedCards.get(String(id))?.update();
@@ -150,10 +165,11 @@ export class FeedsManager {
                 return null;
             }
 
+            const prior = updatedMetadata[target] || {};
             updatedMetadata[target] = {
-                title: feedMeta.title,
-                artwork: feedMeta.artwork,
-                image: feedMeta.image,
+                title: feedMeta.title || prior.title,
+                artwork: feedMeta.artwork || prior.artwork,
+                image: feedMeta.image || prior.image || prior.artwork,
                 episodesCount: feedMeta.episodesCount,
                 description: feedMeta.description
             };
@@ -194,7 +210,7 @@ export class FeedsManager {
             this.state.feeds.push(id);
             this.state.feedUrlById = { ...this.state.feedUrlById, [id]: cleanUrl };
             this.state.feedMetadata[id] = {
-                title: title || 'Unknown Podcast',
+                title,
                 artwork,
                 image: artwork,
                 episodesCount: 0,

@@ -82,6 +82,26 @@
             text-align: center;
             font-size: var(--fs-sm);
         }
+
+        .feed-downloading-progress {
+            margin-top: var(--space-md);
+            .download-progress-item {
+                padding: var(--space-2xs);
+                display: inline;
+
+                svg {
+                    width: var(--space-md);
+                    height: var(--space-md);
+                }
+
+                &.is-downloaded {
+                    svg {
+                        stroke: var(--color-primary);
+                        fill: var(--color-primary);
+                    }
+                }
+            }
+        }
     }
 
     .btn-feed-unsubscribe {
@@ -170,9 +190,7 @@
                         color: var(--color-primary);
                     }
 
-                    svg {
-
-                    }
+                    svg {}
                 }
 
                 &.active {

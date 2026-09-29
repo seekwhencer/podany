@@ -205,7 +205,7 @@ export class LiveClient {
             case 'download:progress':
             case 'download:completed':
             case 'download:failed':
-                this._handleDownload(payload);
+                this._handleDownload(msg);
                 break;
 
             case 'image:completed':
@@ -241,33 +241,70 @@ export class LiveClient {
 
     // ── Event dispatch to managers ──────────────────────────────────────────
 
-    _handleDownload(payload) {
-        return;
+    _handleDownload(msg = null) {
+        if (msg === null)
+            return;
 
-        const episodeId = payload.episodeId;
-        if (!episodeId) return;
+        const event = msg?.type || false;
+        const payload = msg?.payload || false;
+
+        if (event === false)
+            return;
+
+
+        switch (event) {
+            case 'download:progress':
+                console.log('>>> DOWNLOAD STARTED:', payload.id);
+                this._addDownloadingSpan(payload);
+                break;
+
+            case 'download:completed':
+                console.log('>>> DOWNLOAD COMPLETE:', payload.id);
+                this._markDownloaded(payload);
+                break;
+        }
+
         if (!this.state.downloadStatus) this.state.downloadStatus = {};
         const status = payload.status || (payload.progress !== undefined ? 'progress' : 'completed');
-        this.state.downloadStatus[episodeId] = {
+        this.state.downloadStatus[payload.episodeId] = {
             status,
             progress: typeof payload.progress === 'number' ? payload.progress : undefined,
             title: payload.title,
             at: Date.now()
         };
+    }
 
-        const entry = this.app.timeline.allEpisodeCards().find(c => String(c.el.dataset.id) === String(episodeId));
-        if (!entry) return;
-        const badge = entry.el.querySelector('.ep-download-badge');
-        if (!badge) return;
-        const data = this.state.downloadStatus[episodeId];
-        badge.dataset.status = data.status;
-        if (data.status === 'completed') {
-            badge.textContent = 'Downloaded';
-        } else if (data.status === 'failed') {
-            badge.textContent = 'Failed';
-        } else {
-            badge.textContent = `${Math.min(100, Math.max(0, Math.round(data.progress || 0)))}%`;
-        }
+    _feedCard(feedId) {
+        const grid = this.app.feeds?.grid?.feedCards;
+        if (!grid) return null;
+        const card = grid.get(String(feedId));
+        return card && card.el ? card : null;
+    }
+
+    _addDownloadingSpan(payload) {
+        const feedId = payload.subscriptionId;
+        if (!feedId || !payload.episodeId) return;
+        const card = this._feedCard(feedId);
+        if (!card) return;
+        const progress = card.el.querySelector('.feed-downloading-progress');
+        if (!progress) return;
+        if (progress.querySelector(`.download-progress-item[data-episode-id="${payload.episodeId}"]`)) return;
+
+        const span = document.createElement('span');
+        span.className = 'download-progress-item';
+        span.dataset.episodeId = String(payload.episodeId);
+        //span.textContent = payload.title || `Episode ${payload.episodeId}`;
+        span.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star preview-icon"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>';
+        progress.appendChild(span);
+    }
+
+    _markDownloaded(payload) {
+        const feedId = payload.subscriptionId;
+        if (!feedId || !payload.episodeId) return;
+        const card = this._feedCard(feedId);
+        if (!card) return;
+        const span = card.el.querySelector(`.feed-downloading-progress .download-progress-item[data-episode-id="${payload.episodeId}"]`);
+        if (span) span.classList.add('is-downloaded');
     }
 
     _handleArtwork(payload) {
@@ -356,7 +393,7 @@ export class LiveClient {
         const ids = Array.isArray(payload.id) ? payload.id : (payload.id != null ? [payload.id] : []);
         const feeds = this.app.feeds;
         if (!feeds) return;
-        
+
         for (const id of ids) {
             if (typeof feeds.refreshSingleFeed === 'function') {
                 await feeds.refreshSingleFeed(id);

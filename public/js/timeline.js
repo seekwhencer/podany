@@ -479,7 +479,7 @@ export class TimelineManager {
             if (totalDur > 0) {
                 const targetTime = Math.round(ratio * totalDur);
                 const resumeBadge = els.resumeBadge || card.querySelector('.ep-resume-time');
-                if (resumeBadge) resumeBadge.textContent = `• Resumes at ${formatTime(targetTime)}`;
+                if (resumeBadge) resumeBadge.textContent = `Resumes at ${formatTime(targetTime)}`;
 
                 if (commit) {
                     this.state.playbackPositions[ep.id] = {

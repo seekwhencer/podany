@@ -85,24 +85,27 @@ export class EpisodeCardRenderer {
       </div>
       ${ep.description ? `<div class="episode-desc">${escapeHtml(ep.description)} <span class="episode-desc-link">Notes & links →</span></div>` : ''}
       ${progressTrackHtml}
+      
       <div class="episode-footer">
-        <div class="episode-meta">
-          <span title="${escapeHtml(fullDate)}" class="date-line" style="display:block;">${escapeHtml(humanDate)}</span>
-<span class="time-line" style="display:block;">${escapeHtml(humanTime)}</span>
-          ${formattedDuration ? `<span>${escapeHtml(formattedDuration)}</span>` : ''}
-          ${resumeTimeStr ? `<span class="ep-resume-time" title="Click to resume playback">• ${resumeTimeStr}</span>` : ''}
-        </div>
-        <div class="episode-card-actions" style="display:flex; gap:4px; flex-wrap:nowrap;">
-          <button class="btn-queue-ep ${isQueued ? 'is-queued' : ''}" title="${isQueued ? 'Remove from Up Next' : 'Add to Up Next'}">
-            ${isQueued ? this.config.cardIcons.QUEUE_ADDED : this.config.cardIcons.QUEUE}
+      <div class="episode-card-actions" style="display:flex; gap:4px; flex-wrap:nowrap;">
+         <button class="btn-play-ep" title="${btnTitle}">
+            ${btnHtml}
           </button>
           <button class="btn-mark-played ${isCompleted ? 'is-completed' : ''}" title="${isCompleted ? 'Mark as Unplayed' : 'Mark as Played'}">
             ${isCompleted ? this.config.cardIcons.CHECK_FILLED : this.config.cardIcons.CHECK}
           </button>
-          <button class="btn-play-ep" title="${btnTitle}">
-            ${btnHtml}
+          
+           <button class="btn-queue-ep ${isQueued ? 'is-queued' : ''}" title="${isQueued ? 'Remove from Up Next' : 'Add to Up Next'}">
+            ${isQueued ? this.config.cardIcons.QUEUE_ADDED : this.config.cardIcons.QUEUE}
           </button>
         </div>
+        <div class="episode-meta">
+          <span title="${escapeHtml(fullDate)}" class="date-line" style="display:block;">${escapeHtml(humanDate)}</span>
+          <span class="time-line" style="display:block;">${escapeHtml(humanTime)}</span>
+          ${formattedDuration ? `<span>${escapeHtml(formattedDuration)}</span>` : ''}
+          ${resumeTimeStr ? `<span class="ep-resume-time" title="Click to resume playback">${resumeTimeStr}</span>` : ''}
+        </div>
+        
       </div>
     `;
 
