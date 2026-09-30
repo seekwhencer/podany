@@ -1,0 +1,23 @@
+/* AppShell — layout container for the component shell (Phase 2). */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Router-driven view area. In Phase 2 it lives inside the still-service-owned
+   .main-content so feature views keep their mount targets (Phase 5 populates). */
+.app-shell-view {
+  width: 100%;
+}
+
+.app-shell-view-marker {
+  margin: 2rem 0;
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-md);
+}

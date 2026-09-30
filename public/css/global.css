@@ -43,15 +43,6 @@ body {
   flex: 1;
 }
 
-.tab-panel {
-  display: none;
-
-  &.active {
-    display: block;
-    animation: fadeIn 0.3s ease-out;
-  }
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;

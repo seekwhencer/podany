@@ -1,0 +1,31 @@
+/* ConfirmModalComponent — confirmation dialog (R5). */
+
+.confirm-modal__card {
+    max-width: 440px;
+}
+
+.confirm-modal__title {
+    font-size: var(--fs-lg);
+    font-weight: 450;
+}
+
+.confirm-modal__message {
+    font-size: var(--fs-md);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.confirm-modal__footer {
+    margin-top: 1.25rem;
+}
+
+.confirm-modal__confirm.btn--danger {
+    background: var(--color-primary, #e05a2b);
+    border-color: var(--color-primary, #e05a2b);
+}
+
+.confirm-modal__confirm.btn--danger:hover {
+    background: #c94e25;
+    border-color: #c94e25;
+}

@@ -1,0 +1,87 @@
+/* AddFeedComponent — add-feed modal (R5). */
+
+.add-feed__card {
+    max-width: 520px;
+}
+
+.add-feed__title {
+    font-size: var(--fs-lg);
+    font-weight: 450;
+}
+
+.add-feed__label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+}
+
+.add-feed__url-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 0.9rem;
+    color: var(--text-primary);
+    font-size: var(--fs-md);
+    width: 100%;
+    margin-bottom: 0.75rem;
+    outline: none;
+}
+
+.add-feed__submit {
+    width: 100%;
+}
+
+.add-feed__search-wrap {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.add-feed__search-input {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.85rem;
+    color: var(--text-primary);
+    font-size: var(--fs-sm);
+    outline: none;
+}
+
+.add-feed__search-btn {
+    white-space: nowrap;
+}
+
+.add-feed__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.add-feed__chips-label {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    margin-right: 0.25rem;
+}
+
+.add-feed__results {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.add-feed__status {
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.add-feed__error {
+    color: #fca5a5;
+    margin-top: 0.5rem;
+}

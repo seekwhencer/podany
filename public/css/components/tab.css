@@ -1,0 +1,41 @@
+/* Tab — atomic selectable nav tab (Phase 3).
+   Styling strategy: FRONTEND_REFACTORING_COMPONENTS.md §14. */
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+  }
+
+  &.tab--active {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  &.tab--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+[data-theme='light'] .tab.tab--active {
+  background: rgba(0, 0, 0, 0.08);
+}

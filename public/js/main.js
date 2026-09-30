@@ -2,43 +2,70 @@
 // Wires the modularized managers into a single app container and runs the boot
 // sequence on DOMContentLoaded. Bundled with esbuild to public/dist/bundle.js.
 //
-// Managers (each receives the shared `app` container):
-//   config, state, elements, api, storage — shared infrastructure
-//   theme, modal, playerUI                — shell / UI helpers
+// Services (each receives the shared `app` container):
+//   config, state, dom, api, storage — shared infrastructure
+//   theme, modal                      — shell / UI helpers
 //   auth, feeds, playback, queue, sync, timeline — features
 
-import Config from './config.js';
-import AppState from './state.js';
-import Elements from './dom.js';
-import { ApiClient, ApiError } from './api.js';
-import Storage from './storage.js';
-import ThemeManager from './ui/theme.js';
-import ModalManager from './ui/modal.js';
-import PlayerUI from './ui/player-ui.js';
-import AuthManager from './auth.js';
-import FeedsManager from './feeds.js';
-import PlaybackManager from './playback.js';
-import QueueManager from './queue.js';
-import SyncManager from './sync.js';
-import TimelineManager from './timeline.js';
-import LiveClient from './live/LiveClient.js';
+
+// Factories
+import Config from './Config.js';
+import AppState from './State.js';
+import RouterService from './Router.js';
+import { ApiClient, ApiError } from './Api.js';
+import Storage from './Storage.js';
+
+// The App Shell
+import AppShell from './components/AppShell.js';
+
+// Views
+import TimelineView from './components/TimelineView.js';
+import FeedsView from './components/FeedsView.js';
+import FeedDetailView from './components/FeedDetailView.js';
+import QueueView from './components/QueueView.js';
+import SettingsView from './components/SettingsView.js';
+
+// Components
+import ThemeComponent from './components/ThemeComponent.js';
+import ModalComponent from './components/ModalComponent.js';
+
+// Services
+import ThemeService from './services/ThemeService.js';
+import ModalService from './services/ModalService.js';
+import AuthService from './services/AuthService.js';
+import FeedsService from './services/FeedsService.js';
+import PlaybackService from './services/PlaybackService.js';
+import QueueService from './services/QueueService.js';
+import SyncService from './services/SyncService.js';
+import TimelineService from './services/TimelineService.js';
+
+// The Websocket Client
+import LiveClient from './LiveClient.js';
 
 export class App {
     constructor() {
         this.config = new Config();
         this.state = new AppState();
-        this.elements = new Elements();
+        this.router = new RouterService(this);
+        // Static non-UI engine resources, fetched once from the HTML (§6.2). Only
+        // the audio engine and the YouTube fallback (container + player) remain;
+        // the #app mount root is acquired in init() below. Passed to services as
+        // references via app.dom; no module queries the global document for them.
+        this.dom = {
+            audio: document.getElementById('audio-engine'),
+            ytPlayerContainer: document.getElementById('yt-player-container'),
+            ytPlayer: document.getElementById('yt-player')
+        };
         this.api = new ApiClient(this.config, this.state);
         this.storage = new Storage(this.config, this.api, this.state);
-        this.theme = new ThemeManager(this);
-        this.modal = new ModalManager(this);
-        this.playerUI = new PlayerUI(this);
-        this.auth = new AuthManager(this);
-        this.feeds = new FeedsManager(this);
-        this.playback = new PlaybackManager(this);
-        this.queue = new QueueManager(this);
-        this.sync = new SyncManager(this);
-        this.timeline = new TimelineManager(this);
+        this.theme = new ThemeService(this);
+        this.modal = new ModalService(this);
+        this.auth = new AuthService(this);
+        this.feeds = new FeedsService(this);
+        this.playback = new PlaybackService(this);
+        this.queue = new QueueService(this);
+        this.sync = new SyncService(this);
+        this.timeline = new TimelineService(this);
     }
 
     // Boot error handler (Schritt 7): surface server errors instead of a silent
@@ -94,7 +121,6 @@ export class App {
         if (this.state.allEpisodes && this.state.allEpisodes.length > 0) {
             this.timeline.processAndSortEpisodes();
             this.timeline.renderTimeline();
-            this.timeline.renderContinueShelf();
             this.feeds.renderFeedsGrid();
         }
 
@@ -117,8 +143,7 @@ export class App {
     wireAllEvents() {
         this.theme.wireThemeButtons();
         this.modal.init();
-        this.playerUI.init();
-        this.auth.wireEvents();
+        // Auth UI is now self-wiring via AuthFlowComponent (mounted by AppShell).
         this.feeds.wireEvents();
         this.queue.wireEvents();
         this.timeline.wireEvents();
@@ -131,22 +156,15 @@ export class App {
     }
 
     setupNetworkListeners() {
-        const updateStatus = () => {
-            if (!this.elements.offlineBadge) return;
-            this.elements.offlineBadge.classList.toggle('hidden', navigator.onLine);
-        };
-        window.addEventListener('online', () => {
+        // Offline/online projection onto the header's own offline-badge is owned
+        // by HeaderComponent (R1); this only keeps the reconnect wiring.
+        const reconnect = () => {
             if (this.live && typeof this.live.forceReconnect === 'function') {
                 this.live.forceReconnect();
             }
-        });
-        window.addEventListener('offline', updateStatus);
-        window.addEventListener('resize', () => {
-            if (this.state.continueCollapsed && this.state.allEpisodes.length > 0) {
-                this.timeline.renderContinueShelf();
-            }
-        });
-        updateStatus();
+        };
+        window.addEventListener('online', reconnect);
+        window.addEventListener('offline', reconnect);
     }
 
     initServiceWorker() {
@@ -163,8 +181,31 @@ export class App {
         this.playback.setupAudioEngines();
         this.setupNetworkListeners();
         this.refreshStaticUI();
-        this.initServiceWorker();
-        this.modal.initNavigationRoute();
+        //this.initServiceWorker();
+        // Navigation is owned by RouterService (constructed in App()); it seeds
+        // `current` and AppShell._seedInitialView() applies the first view. The
+        // legacy ModalService.initNavigationRoute() was removed (Phase 4.2).
+
+        // §6.2: the static HTML only provides the #app mount root. AppShell owns
+        // the .app-container + .main-content structure and builds it on #app; its
+        // Header/PlayerBar/Dock/Views are active (R1-R7). ThemeComponent has no
+        // visible chrome (it drives :root) and mounts as a detached controller.
+        const appRoot = document.getElementById('app');
+
+        this.themeComponent = new ThemeComponent(this);
+        this.themeComponent.mount(appRoot);
+
+        this.modalComponent = new ModalComponent(this);
+
+        this.shell = new AppShell(this);
+        this.shell.mount(appRoot);
+
+        // Phase 5: register real feature views with the router-driven shell.
+        this.shell.registerView('timeline', () => new TimelineView(this));
+        this.shell.registerView('feeds', () => new FeedsView(this));
+        this.shell.registerView('feed', (ctx) => new FeedDetailView(this, ctx));
+        this.shell.registerView('queue', () => new QueueView(this));
+        this.shell.registerView('settings', () => new SettingsView(this));
     }
 }
 

@@ -1,0 +1,50 @@
+/* Online/Offline badge — connection status indicator (Phase 3).
+   Styling strategy: FRONTEND_REFACTORING_COMPONENTS.md §14. */
+
+.online-offline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.online-offline-badge__dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--text-muted);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.is-online .online-offline-badge__dot,
+.online-offline-badge.is-online .online-offline-badge__dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+.is-offline .online-offline-badge__dot,
+.online-offline-badge.is-offline .online-offline-badge__dot {
+  background: var(--text-muted);
+}
+
+.is-offline .online-offline-badge__dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full);
+  animation: online-pulse 2s ease-in-out infinite;
+}
+
+@keyframes online-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.8); opacity: 0; }
+}

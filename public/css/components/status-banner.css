@@ -1,0 +1,39 @@
+/* StatusComponent — transient status banner / toast (R5). */
+
+.status-banner {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    max-width: min(560px, calc(100vw - 2rem));
+    width: max-content;
+    padding: 0.7rem 1.1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-left: 3px solid var(--text-secondary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    font-size: var(--fs-sm);
+    color: var(--text-primary);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.status-banner.hidden {
+    display: none;
+}
+
+.status-banner__text {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.status-banner.is-success {
+    border-left-color: #22c55e;
+}
+
+.status-banner.is-error {
+    border-left-color: var(--color-primary, #e05a2b);
+}

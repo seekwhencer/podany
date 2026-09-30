@@ -1,0 +1,27 @@
+/* QueueModalComponent — "Up Next" queue modal (R5). Reuses the shared queue
+   styles from modals.css; this file only scopes the modal overlay/card. */
+
+.queue-modal__card {
+    max-width: 520px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.queue-modal__title {
+    font-size: var(--fs-lg);
+    font-weight: 450;
+}
+
+.queue-modal__clear {
+    margin-left: auto;
+}
+
+.queue-modal-now-playing {
+    margin-bottom: 0.75rem;
+}
+
+.queue-modal-body {
+    overflow-y: auto;
+    max-height: calc(85vh - 140px);
+}

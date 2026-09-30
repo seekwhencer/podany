@@ -37,8 +37,12 @@ export default [
     },
   },
   {
-    // dom.js ist die einzige sanctioned Stelle für getElementById / q / qa.
-    files: ['public/js/dom.js'],
+    // Root-resource acquisition after dom.js was removed (R8). main.js is the
+    // app bootstrapper (not a component/service) and owns fetching the static
+    // non-UI resources defined in the HTML (§6.2): the audio engine, the YT
+    // container and the mount roots. Components/services only ever receive these
+    // as passed references (app.dom) — they never query the global document.
+    files: ['public/js/main.js'],
     rules: {
       'no-restricted-syntax': 'off',
     },

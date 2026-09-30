@@ -1,0 +1,67 @@
+/* Badge — atomic text chip (Phase 3).
+   Styling strategy: FRONTEND_REFACTORING_COMPONENTS.md §14. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  background: var(--bg-card-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.badge--default {
+  background: var(--bg-card-hover);
+  color: var(--text-secondary);
+}
+
+.badge--primary {
+  background: var(--primary-glow);
+  color: var(--primary);
+  border-color: rgba(216, 205, 190, 0.3);
+}
+
+.badge--info {
+  background: rgba(24, 179, 210, 0.15);
+  color: #4dd0e1;
+  border-color: rgba(24, 179, 210, 0.3);
+}
+
+.badge--success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.badge--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.badge--danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge--sm {
+  padding: 0.08rem 0.4rem;
+  font-size: var(--fs-2xs);
+}
+
+.badge--lg {
+  padding: 0.2rem 0.7rem;
+  font-size: var(--fs-sm);
+}
+
+.badge--pill {
+  border-radius: var(--radius-full);
+}

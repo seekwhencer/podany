@@ -1,0 +1,111 @@
+/* LiveConnectionComponent — floating connection / download status (Phase 6). */
+
+.live-connection {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.6rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  font-size: var(--fs-xs);
+  max-width: 260px;
+
+  .live-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .live-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.status-online { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.6); }
+    &.status-connecting { background: #f59e0b; animation: pulse 1s infinite; }
+    &.status-offline { background: #94a3b8; }
+  }
+
+  .live-label {
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .live-actions {
+    display: flex;
+    gap: 0.35rem;
+    margin-left: auto;
+
+    .btn-sm {
+      padding: 0.15rem 0.5rem;
+      font-size: var(--fs-2xs);
+    }
+  }
+
+  .live-downloads {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 220px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+    .download-row {
+      margin-bottom: 0.4rem;
+
+      &:last-child { margin-bottom: 0; }
+
+      .download-info {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+
+        .download-title {
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .download-meta {
+          color: var(--text-muted);
+          flex-shrink: 0;
+        }
+      }
+
+      .download-bar {
+        height: 4px;
+        border-radius: var(--radius-full);
+        background: var(--border-light);
+        overflow: hidden;
+
+        .download-fill {
+          height: 100%;
+          width: var(--p, 0%);
+          background: var(--primary);
+          transition: width 0.3s ease;
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}

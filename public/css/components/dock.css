@@ -3,7 +3,7 @@
   bottom: 5px;
   right: 1rem;
   z-index: 90;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 0.35rem;
   background: var(--bg-glass);
@@ -17,6 +17,12 @@
 
   &.dock-hidden {
     display: none !important;
+  }
+
+  /* Phase 6: the filter/sort dock is timeline-specific; show it only on the
+     active timeline view (AppShell sets body[data-active-view]). */
+  body[data-active-view="timeline"] & {
+    display: flex;
   }
 
   body.has-active-episode & {
@@ -38,6 +44,34 @@
     height: 20px;
     background: var(--border-light);
     margin: 0 0.25rem;
+  }
+
+  .dock-search input {
+    width: 14rem;
+    min-width: 7rem;
+    max-width: 100%;
+    padding: 0.35rem 0.65rem;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    outline: none;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--primary);
+    }
+
+    &::placeholder {
+      color: var(--text-muted, var(--text-secondary));
+    }
   }
 
   .chip-filter {

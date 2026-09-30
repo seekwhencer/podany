@@ -1,0 +1,43 @@
+/* Avatar — atomic user/episode avatar (Phase 3).
+   Shows an <img> when `src` is set, otherwise renders centered initials.
+   Styling strategy: FRONTEND_REFACTORING_COMPONENTS.md §14. */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--bg-card-hover);
+  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  user-select: none;
+
+  &.avatar--rounded {
+    border-radius: var(--radius-full);
+  }
+
+  &:not(.avatar--rounded) {
+    border-radius: var(--radius-sm);
+  }
+
+  .avatar__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .avatar__initials {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+}
+
+.avatar--xs { width: 20px; height: 20px; font-size: var(--fs-2xs); }
+.avatar--sm { width: 28px; height: 28px; font-size: var(--fs-xs); }
+.avatar--md { width: 40px; height: 40px; font-size: var(--fs-sm); }
+.avatar--lg { width: 56px; height: 56px; font-size: var(--fs-md); }
+.avatar--xl { width: 80px; height: 80px; font-size: var(--fs-lg); }

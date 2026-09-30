@@ -1,0 +1,63 @@
+/* Input — atomic labeled input (Phase 3).
+   Styling strategy: FRONTEND_REFACTORING_COMPONENTS.md §14. */
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: var(--fs-sm);
+
+  &.input-field--error {
+    border-color: var(--danger);
+  }
+}
+
+.input-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.input-control {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+
+  &:hover {
+    border-color: var(--text-muted);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.input-field__message {
+  font-size: var(--fs-xs);
+  line-height: 1.2;
+}
+
+.input-hint {
+  color: var(--text-muted);
+}
+
+.input-error {
+  color: #fca5a5;
+}

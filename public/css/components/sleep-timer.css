@@ -1,0 +1,53 @@
+/* SleepTimerComponent — sleep-timer modal (R5). */
+
+.sleep-timer__card {
+    max-width: 420px;
+}
+
+.sleep-timer__title {
+    font-size: var(--fs-lg);
+    font-weight: 450;
+}
+
+.sleep-timer__status {
+    margin-bottom: 0.75rem;
+    min-height: 1.2em;
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+}
+
+.sleep-timer__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+}
+
+.sleep-timer__grid .sleep-timer__btn.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--bg-dark);
+    font-weight: 500;
+}
+
+.sleep-timer__fadeout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.sleep-timer__fadeout-input {
+    width: 16px;
+    height: 16px;
+}
+
+.sleep-timer__countdown {
+    margin-top: 0.75rem;
+    font-size: var(--fs-lg);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    text-align: center;
+}

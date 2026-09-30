@@ -195,6 +195,15 @@
     flex-shrink: 0;
   }
 
+  .dock-search {
+    flex-shrink: 0;
+  }
+
+  .dock-search input {
+    width: 9rem;
+    flex-shrink: 0;
+  }
+
   body.has-active-episode .bottom-action-dock {
     bottom: 115px;
   }

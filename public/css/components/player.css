@@ -67,7 +67,7 @@
       }
     }
 
-    #player-artwork {
+    .player-artwork {
       width: 48px;
       height: 48px;
       border-radius: var(--radius-sm);
@@ -144,7 +144,7 @@
         min-width: 36px;
       }
 
-      #seek-bar {
+      .seek-bar {
         flex: 1;
         -webkit-appearance: none;
         appearance: none;
@@ -203,142 +203,93 @@
       background: var(--accent);
       border-radius: 50%;
     }
-
-    #queue-badge {
-      min-width: 14px;
-      height: 14px;
-      padding: 0 3px;
-      border-radius: 7px;
-      font-size: var(--fs-2xs);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #141414;
-      background: var(--accent);
-      top: -4px;
-      right: -4px;
-    }
-  }
-}
-
-#btn-player-mark-played:hover {
-  color: var(--color-primary);
-}
-
-#btn-player-notes:hover {
-  color: var(--color-primary);
-}
-
-/* Compact Mini Player */
-.player-mini {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 52px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border-light);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1.5rem;
-  gap: 1rem;
-  z-index: 100;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
-  transform: translateY(105%);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-
-  body.has-active-episode.has-mini-player & {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
   }
 
-  .mini-track-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-    min-width: 0;
-    cursor: pointer;
-    user-select: none;
-    padding: 3px 6px;
-    border-radius: var(--radius-sm);
-    transition: background 0.15s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .mini-artwork {
-      width: 38px;
-      height: 38px;
-      border-radius: 6px;
-      object-fit: cover;
-      background: #1f2937;
-      flex-shrink: 0;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    }
-
-    .mini-text {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      flex: 1;
-      gap: 2px;
-
-      .mini-title {
-        font-size: var(--fs-sm);
-        font-weight: 600;
-        color: var(--text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1.25;
-      }
-
-      .mini-podcast {
-        font-size: var(--fs-xs);
-        color: var(--text-secondary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1.2;
-      }
-    }
-  }
-
-  .mini-controls {
+  /* Control-extra cluster (speed pill + sleep timer) inside the center zone. */
+  .control-extra {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-shrink: 0;
+    margin-top: 0.25rem;
 
-    .mini-play-btn,
-    .mini-toggle-btn {
-      width: 36px;
-      height: 36px;
-      display: inline-flex;
+    .btn-pill {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border-light);
+      color: var(--text-primary);
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-full);
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: all 0.2s ease;
+      padding: 4px;
+      border-radius: var(--radius-full);
+
+      &:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.08);
+      }
     }
 
-    .mini-play-btn:hover,
-    .mini-toggle-btn:hover,
-    #btn-collapse-player:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--primary);
+    .badge {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
     }
   }
+
+  /* Expand button only visible in the collapsed (mini) state. */
+  .btn-expand-player {
+    display: none;
+  }
+
+  /* ── Collapsed / mini state ──────────────────────────────────────────── */
+  body.has-active-episode &.collapsed {
+    grid-template-columns: 260px 1fr auto;
+    padding: 0.5rem 2rem;
+
+    .control-buttons {
+      .btn-icon:not(.btn-play-pause) {
+        display: none;
+      }
+    }
+
+    .time-scrubber,
+    .control-extra {
+      display: none;
+    }
+
+    .player-right-options {
+      .btn-player-notes,
+      .btn-open-queue,
+      .btn-collapse-player {
+        display: none;
+      }
+
+      .btn-expand-player {
+        display: flex;
+      }
+    }
+  }
+}
+
+.btn-player-mark-played:hover {
+  color: var(--color-primary);
+}
+
+.btn-player-notes:hover {
+  color: var(--color-primary);
 }

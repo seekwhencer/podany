@@ -1,0 +1,47 @@
+/* Sync status indicator — sync state indicator (Phase 3).
+   States: idle / syncing / synced / error.
+   Styling strategy: FRONTEND_REFACTORING_COMPONENTS.md §14. */
+
+.sync-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.sync-status-indicator__dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--text-muted);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.sync-status-indicator.is-synced .sync-status-indicator__dot {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.sync-status-indicator.is-error .sync-status-indicator__dot {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.sync-status-indicator.is-syncing .sync-status-indicator__dot {
+  background: #fbbf24;
+  animation: sync-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
