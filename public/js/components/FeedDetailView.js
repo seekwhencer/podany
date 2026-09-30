@@ -15,6 +15,7 @@ export class FeedDetailView extends BaseComponent {
         this.header = null;
         this.episodes = null;
         this.elHeaderHost = null;
+        this.ctx = ctx;
     }
 
     render() {
@@ -24,7 +25,17 @@ export class FeedDetailView extends BaseComponent {
         return this.el;
     }
 
-    onMount() {
+    async onMount() {
+        // Subscribed feeds are fetched by DB id before the view builds, so the
+        // header and episode list render with live data. There is no preview path.
+
+        console.log('>>>', this.ctx, this.target, this.state.feeds);
+
+        if (this.state.feeds.includes(this.target)) {
+            await this.app.feeds.refreshSingleFeed(this.target);
+        }
+        if (!this._mounted) return;
+
         this._build();
 
         this.subscribe('searchQuery', () => this._updateHeaderCtx());

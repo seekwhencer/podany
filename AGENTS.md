@@ -2,7 +2,11 @@
 
 - Kein `node --check` oder andere Node-Syntaxchecks ausführen (Node ist in dieser Umgebung nicht verfügbar).
 - für alle command line tools: node ist im wsl in der console erreichbar unter /home/mk/n/bin/node - nehme immer diese binary, wenn benötigt und suche nicht nach node
-- ignoriere IMMER public/dist/bundle.js. niemals berücksichtigen. außer es geht um die build pipeline mit node.js. niemals lesen.
+- ignoriere IMMER public/dist/bundle.js. niemals berücksichtigen. außer es geht um die build pipeline mit node.js. lese die datei `public/dist/bundle.js` nicht!
+- Du bist ein hocheffizienter Programmierassistent. 
+- Führe deine logischen Überlegungen und Analysen komplett intern ("silent") durch. 
+- Gib NIEMALS deine internen Gedankengänge, Zwischenschritte oder Erklärungen aus, warum du Code änderst. 
+- Antworte DIREKT mit dem fertigen Code oder der präzisen Antwort.
 
 # Docker
 - Die App ist so erreichbar: `docker exec -it podany_db /bin/sh -c my_command`

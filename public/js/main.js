@@ -203,7 +203,7 @@ export class App {
         // Phase 5: register real feature views with the router-driven shell.
         this.shell.registerView('timeline', () => new TimelineView(this));
         this.shell.registerView('feeds', () => new FeedsView(this));
-        this.shell.registerView('feed', (ctx) => new FeedDetailView(this, ctx));
+        this.shell.registerView('feed', (app, ctx) => new FeedDetailView(app, ctx));
         this.shell.registerView('queue', () => new QueueView(this));
         this.shell.registerView('settings', () => new SettingsView(this));
     }

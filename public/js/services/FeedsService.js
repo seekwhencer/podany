@@ -89,7 +89,7 @@ export class FeedsService {
         const incomingEpisodes = [];
         const updatedMetadata = { ...this.state.feedMetadata };
 
-        const fetchPromises = this.state.feeds.map(id => this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata, true));
+        const fetchPromises = this.state.feeds.map(id => this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata));
         await Promise.allSettled(fetchPromises);
 
         const epMap = new Map();
@@ -117,7 +117,7 @@ export class FeedsService {
         const incomingEpisodes = [];
         const updatedMetadata = { ...this.state.feedMetadata };
 
-        await this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata, true);
+        await this.fetchSingleFeed(id, incomingEpisodes, updatedMetadata);
 
         const epMap = new Map();
         incomingEpisodes.forEach(ep => {
@@ -139,11 +139,10 @@ export class FeedsService {
         if (this.grid) this.grid.feedCards.get(String(id))?.update();
     }
 
-    async fetchSingleFeed(target, incomingEpisodes, updatedMetadata, isId = false) {
+    async fetchSingleFeed(target, incomingEpisodes, updatedMetadata) {
         try {
-            // Subscribed feeds are read by DB subscription id; preview of an
-            // unsubscribed feed still fetches the RSS source by URL.
-            const feedData = isId ? await this.api.loadFeedById(target) : await this.api.fetchFeed(target);
+            // Subscribed feeds are always read by DB subscription id.
+            const feedData = await this.api.loadFeedById(target);
 
             if (feedData && feedData.error) {
                 if (!updatedMetadata[target]) {
