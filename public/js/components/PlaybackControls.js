@@ -111,7 +111,9 @@ export class PlaybackControls extends BaseComponent {
 
     _rectPairIcon() {
         const svg = this.createElement('svg', { class: 'icon-pause', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'currentColor' });
-        svg.setAttribute('d', 'rect x="6" y="4" width="4" height="16" rect x="14" y="4" width="4" height="16"');
+        const left = this.createElement('rect', { x: '6', y: '4', width: '4', height: '16' });
+        const right = this.createElement('rect', { x: '14', y: '4', width: '4', height: '16' });
+        svg.append(left, right);
         return svg;
     }
 

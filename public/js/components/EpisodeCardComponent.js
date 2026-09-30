@@ -48,19 +48,6 @@ export class EpisodeCardComponent extends BaseComponent {
         const curPos = this._currentPos(savedPos);
         const resumeTimeStr = hasProgress ? `Resumes at ${formatTime(curPos)}` : '';
 
-        let progressTrackHtml = null;
-        if (hasProgress) {
-            const durSec = this._durationSeconds(ep);
-            let progressPct = 0;
-            if (durSec > 0) progressPct = Math.min(100, Math.max(1, Math.round((curPos / durSec) * 100)));
-            else progressPct = 5;
-            const fill = this.createElement('div', { class: 'ep-progress-fill' });
-            fill.style.width = `${progressPct}%`;
-            const track = this.createElement('div', { class: 'ep-progress-track', title: 'Click or scrub to resume at any point' });
-            track.appendChild(fill);
-            progressTrackHtml = track;
-        }
-
         const dateInput = ep.timestamp || ep.pubDate;
         const humanDate = dateInput ? formatHumanRelativeDate(dateInput) : 'Unknown date';
         const fullDate = dateInput ? new Date(dateInput).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
@@ -101,10 +88,8 @@ export class EpisodeCardComponent extends BaseComponent {
             this.elDesc = desc;
         }
 
-        if (progressTrackHtml) {
-            this.elCard.appendChild(progressTrackHtml);
-            this.elProgressTrack = progressTrackHtml;
-            this.elFill = progressTrackHtml.querySelector('.ep-progress-fill');
+        if (hasProgress) {
+            this._buildProgressTrack();
         }
 
         const playBtn = this._buildActionBtn('btn-play-ep', this._playIconKey(), this._playTitle());
@@ -171,6 +156,7 @@ export class EpisodeCardComponent extends BaseComponent {
         this.subscribe('playbackStatus', () => this._syncState());
         this.subscribe('queue', () => this._syncState());
         this.subscribe('playbackPositions', () => this._syncState());
+        this.subscribe('livePlayback', () => this._syncState());
         this._syncState();
     }
 
@@ -200,6 +186,72 @@ export class EpisodeCardComponent extends BaseComponent {
         return 0;
     }
 
+    _buildProgressTrack() {
+        if (this.elProgressTrack) return this.elProgressTrack;
+
+        const ep = this.episode;
+        const savedPos = this.state.playbackPositions[ep.id];
+        const pos = this._currentPos(savedPos);
+        const durSec = this._durationSeconds(ep);
+        let progressPct = 0;
+        if (durSec > 0) progressPct = Math.min(100, Math.max(1, Math.round((pos / durSec) * 100)));
+        else progressPct = 5;
+
+        const fill = this.createElement('div', { class: 'ep-progress-fill' });
+        fill.style.width = `${progressPct}%`;
+        const track = this.createElement('div', { class: 'ep-progress-track', title: 'Click or scrub to resume at any point' });
+        track.appendChild(fill);
+
+        const footer = this.elCard.querySelector('.episode-footer');
+        if (footer) {
+            this.elCard.insertBefore(track, footer);
+        } else {
+            this.elCard.appendChild(track);
+        }
+
+        this.elProgressTrack = track;
+        this.elFill = fill;
+        return track;
+    }
+
+    _syncProgress() {
+        const ep = this.episode;
+        if (!ep) return;
+
+        const isActive = this._isActive();
+        const live = this.state.livePlayback || { currentTime: 0, progress: 0 };
+        const savedPos = this.state.playbackPositions[ep.id];
+
+        let pos = 0;
+        if (isActive) {
+            pos = live.currentTime || 0;
+        } else if (savedPos) {
+            pos = savedPos.position || 0;
+        }
+
+        const hasProgress = isActive || pos > 2;
+        if (!hasProgress) {
+            if (this.elProgressTrack) {
+                this.elProgressTrack.remove();
+                this.elProgressTrack = null;
+                this.elFill = null;
+            }
+            return;
+        }
+
+        if (!this.elProgressTrack) {
+            this._buildProgressTrack();
+        }
+
+        if (this.elFill) {
+            const durSec = this._durationSeconds(ep);
+            let pct = 0;
+            if (durSec > 0) pct = Math.min(100, Math.max(1, Math.round((pos / durSec) * 100)));
+            else pct = live.progress || 5;
+            this.elFill.style.width = `${pct}%`;
+        }
+    }
+
     _playIconKey() {
         if (this._isLoading()) return this.config.cardIcons.SPINNER;
         if (this._isPlaying()) return this.config.cardIcons.PAUSE;
@@ -218,6 +270,8 @@ export class EpisodeCardComponent extends BaseComponent {
         if (!this._mounted || !this.elCard) return;
 
         this.elCard.classList.toggle('playing', this._isActive());
+
+        this._syncProgress();
 
         if (this.elPlayBtn) {
             this.elPlayBtn.innerHTML = this._playIconKey();
