@@ -66,9 +66,6 @@ export class TimelineView extends BaseComponent {
     }
 
     onMount() {
-        this._sigList = this._listSignature();
-        this._sigShelf = this._shelfSignature();
-
         this.subscribe('filteredEpisodes', () => this._handleStateChange());
         this.subscribe('allEpisodes', () => this._handleStateChange());
         this.subscribe('playbackPositions', () => this._handleStateChange());
@@ -76,7 +73,7 @@ export class TimelineView extends BaseComponent {
         this.subscribe('filterMode', () => this._handleStateChange());
         this.subscribe('continueCollapsed', () => this._handleStateChange());
 
-        this.on(this.el, 'click', (e) => this._onDelegatedClick(e));
+        this.on(this.el, ['play-requested', 'resume-requested', 'seek-requested', 'queue-toggled', 'mark-played', 'open-notes', 'open-feed'], (e) => this._onDelegatedClick(e));
         if (this.elShelfToggle) this.on(this.elShelfToggle, 'click', () => {
             this.state.continueCollapsed = !this.state.continueCollapsed;
             this.state.notify('continueCollapsed');
@@ -85,10 +82,13 @@ export class TimelineView extends BaseComponent {
         // Capacity is responsive; re-project the collapsed shelf on resize (moved
         // out of the legacy TimelineService resize hook — §13 cleanup in unmount).
         this._onResize = () => {
-            if (this.state.continueCollapsed && this.state.allEpisodes.length > 0) {
-                this._clearMap(this._shelfCards, this.elShelfGrid);
-                this._renderShelf();
-            }
+            clearTimeout(this.refreshShelfTimeout);
+            this.refreshShelfTimeout = setTimeout(() => {
+                if (this.state.continueCollapsed && this.state.allEpisodes.length > 0) {
+                    this._clearMap(this._shelfCards, this.elShelfGrid);
+                    this._renderShelf();
+                }
+            }, 1000);
         };
         window.addEventListener('resize', this._onResize);
 
@@ -166,7 +166,7 @@ export class TimelineView extends BaseComponent {
         episodes.forEach(ep => {
             const key = String(ep.id);
             const existing = map.get(key);
-            if (existing) { host.appendChild(existing); return; }
+            if (existing) { host.appendChild(existing.el); return; }
             const card = new EpisodeCardComponent(this.app, { episode: ep });
             card.mount(host);
             map.set(key, card);

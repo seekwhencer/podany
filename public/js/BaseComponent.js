@@ -93,11 +93,17 @@ export class BaseComponent {
 
     // ── DOM helpers (own tree only) ────────────────────────────────────────
 
-    // Bind a listener to a node in this.el and track it for unmount().
+    // Bind a listener to a node in this.el and track it for unmount(). `type`
+    // may be a single event name or an array of names sharing one handler; this
+    // backs the bottom-up CustomEvent delegation convention where children emit
+    // named events (e.g. 'play-requested') and a parent listens on its own root.
     on(target, type, handler, options) {
         if (!target || typeof target.addEventListener !== 'function') return;
-        target.addEventListener(type, handler, options);
-        this._listeners.push({ target, type, handler });
+        const types = Array.isArray(type) ? type : [type];
+        for (const single of types) {
+            target.addEventListener(single, handler, options);
+            this._listeners.push({ target, type: single, handler });
+        }
     }
 
     // Create an element via createElement (allowed; only document.* selectors

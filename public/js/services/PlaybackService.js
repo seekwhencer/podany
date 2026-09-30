@@ -59,7 +59,7 @@ export class PlaybackService {
             events: {
                 onReady: (event) => {
                     this.state.ytReady = true;
-        this.state.notify('ytReady');
+                    this.state.notify('ytReady');
                     if (this.state.pendingYouTubePlay) {
                         const pending = this.state.pendingYouTubePlay;
                         this.state.pendingYouTubePlay = null;
@@ -92,15 +92,15 @@ export class PlaybackService {
                 if (audio.seekable && audio.seekable.length > 0) {
                     audio.currentTime = target;
                     this.state.pendingStartTime = null;
-            this.state.notify('pendingStartTime');
+                    this.state.notify('pendingStartTime');
                 } else if (audio.duration && audio.duration > 0 && isFinite(audio.duration)) {
                     audio.currentTime = Math.min(target, audio.duration);
                     this.state.pendingStartTime = null;
-            this.state.notify('pendingStartTime');
+                    this.state.notify('pendingStartTime');
                 } else if (audio.readyState >= 1) {
                     audio.currentTime = target;
                     this.state.pendingStartTime = null;
-            this.state.notify('pendingStartTime');
+                    this.state.notify('pendingStartTime');
                 }
             } catch (_) { }
         };
@@ -363,7 +363,7 @@ export class PlaybackService {
                     events: {
                         onReady: (event) => {
                             this.state.ytReady = true;
-        this.state.notify('ytReady');
+                            this.state.notify('ytReady');
                             if (startTime > 0 && event.target.seekTo) {
                                 event.target.seekTo(startTime, true);
                             }

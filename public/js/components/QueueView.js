@@ -56,7 +56,7 @@ export class QueueView extends BaseComponent {
 
         this.on(this.elClear, 'click', () => this.app.queue.clearQueue());
 
-        this.on(this.el, 'click', (e) => {
+        this.on(this.el, ['queue-item-play', 'queue-item-remove'], (e) => {
             const detail = e.detail || {};
             if (e.type === 'queue-item-play' && detail.episode) {
                 this.app.queue.removeFromQueue(detail.episode.id);

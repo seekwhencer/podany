@@ -39,7 +39,7 @@ export class FeedsGridComponent extends BaseComponent {
         this.subscribe('searchQuery', () => this._render());
         this.subscribe('feedMetadata', () => this._render());
 
-        this.on(this.el, 'click', (e) => {
+        this.on(this.el, ['open-feed', 'unsubscribe-requested', 'play-requested'], (e) => {
             const detail = e.detail || {};
             if (e.type === 'open-feed' && detail.feedId) {
                 this.app.router.navigate(`/feed/${detail.feedId}`);

@@ -27,7 +27,7 @@ export class FeedDetailEpisodesComponent extends BaseComponent {
         this.subscribe('searchQuery', () => this._render());
         this.subscribe('feedMetadata', () => this._render());
 
-        this.on(this.el, 'click', (e) => {
+        this.on(this.el, ['play-requested', 'resume-requested', 'seek-requested', 'queue-toggled', 'mark-played', 'open-notes', 'open-feed'], (e) => {
             const detail = e.detail || {};
             if (e.type === 'play-requested' && detail.episode) this.app.playback.toggleEpisodePlayback(detail.episode);
             else if (e.type === 'resume-requested' && detail.episode) this.app.playback.toggleEpisodePlayback(detail.episode);

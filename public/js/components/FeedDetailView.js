@@ -31,7 +31,7 @@ export class FeedDetailView extends BaseComponent {
         this.subscribe('allEpisodes', () => this._updateHeaderCtx());
         this.subscribe('feedMetadata', () => this._updateHeaderCtx());
 
-        this.on(this.el, 'click', (e) => {
+        this.on(this.el, ['back-clicked', 'action-clicked'], (e) => {
             const detail = e.detail || {};
             if (e.type === 'back-clicked') this.app.router.navigate('/feeds');
             else if (e.type === 'action-clicked' && detail.target) {
