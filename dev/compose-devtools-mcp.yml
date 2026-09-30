@@ -1,0 +1,22 @@
+services:
+  chrome-devtools-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chrome-devtools-mcp
+    user: "appuser:appuser"
+    entrypoint: ["/bin/sh", "-c"]
+    command: 
+      - "while true; do chmod -R 644 /tmp/screenshots/* 2>/dev/null; sleep 2; done & npx -y supergateway --port 9333 --stdio \"npx -y chrome-devtools-mcp@latest --headless --executable-path /headless-shell/headless-shell\""
+    restart: unless-stopped
+    ports:
+      - "9222:9222"
+      - "9333:9333"
+    init: true
+    shm_size: 1gb
+    security_opt:
+      - seccomp=unconfined
+    extra_hosts:
+      - "dockerhost:host-gateway"
+    volumes:
+      - ../docs/screenshots/mcp:/tmp/screenshots

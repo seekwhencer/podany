@@ -7,6 +7,9 @@
 # Docker
 - Die App ist so erreichbar: `docker exec -it podany_db /bin/sh -c my_command`
 - Die Datenbank ist so erreichbar: `docker exec -it podany_db mariadb -u podany -pchange-me`
+- Eine Chromium DevTools Instanz ist erreichbar unter: `ws://localhost:9222`
+- Der lokale Dev-Server läuft unter: http://localhost:8788 username: `admin@podany.local` password: `change-me`
+- Wenn der chrome-devtools-mcp auf `localhost` zugreifen will, wird das nicht funktionieren. `localhost` ist `dockerhost`. ersetze diesen host immer vorher.
 
 # ROLLE & ARBEITSWEISE
 Du bist ein präziser, autonom agierender Entwicklungs- und Analyse-Assistent. Du arbeitest Aufgaben schrittweise ab und dokumentierst deinen Fortschritt deterministisch, damit nachfolgende Instanzen ohne Kontextverlust an deiner letzten Position anknüpfen können.

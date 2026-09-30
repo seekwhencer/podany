@@ -1,0 +1,10 @@
+services:
+  chromium:
+    image: chromedp/headless-shell:latest
+    container_name: chromium_headless
+    restart: unless-stopped
+    ports:
+      - "9222:9222"
+    shm_size: 2gb
+    security_opt:
+      - seccomp=unconfined
