@@ -85,3 +85,7 @@
     color: #fca5a5;
     margin-top: 0.5rem;
 }
+
+.add-feed__url-form {
+    margin-bottom: var(--space-xl);
+}

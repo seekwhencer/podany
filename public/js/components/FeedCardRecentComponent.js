@@ -9,8 +9,8 @@ import { formatDurationCompact } from '../utils.js';
 import { CARD_ICONS } from '../Config.js';
 
 export class FeedCardRecentComponent extends BaseComponent {
-    constructor(app) {
-        super(app, {});
+    constructor(app, { feedId } = {}) {
+        super(app, { feedId: feedId ?? null });
         this.rows = new Map();   // guid -> { row, btn }
         this.el = null;
     }

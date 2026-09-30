@@ -47,6 +47,7 @@ export class AddFeedComponent extends BaseComponent {
         urlForm.append(urlLabel, this.elUrlInput, this.elSubmitBtn);
 
         const searchForm = this.createElement('form', { class: 'add-feed__search-form' });
+        const searchLabel = this.createElement('label', { class: 'add-feed__label', text: 'Podcast Directory' });
         const searchWrap = this.createElement('div', { class: 'add-feed__search-wrap' });
         this.elSearchInput = this.createElement('input', {
             type: 'text',
@@ -56,7 +57,7 @@ export class AddFeedComponent extends BaseComponent {
         });
         this.elSearchBtn = this.createElement('button', { class: 'add-feed__search-btn btn btn--secondary', type: 'submit', text: 'Search' });
         searchWrap.append(this.elSearchInput, this.elSearchBtn);
-        searchForm.append(searchWrap);
+        searchForm.append(searchLabel, searchWrap);
 
         const chipsWrap = this.createElement('div', { class: 'modal-category-chips add-feed__chips' });
         const chipsLabel = this.createElement('span', { class: 'add-feed__chips-label', text: 'Browse:' });
