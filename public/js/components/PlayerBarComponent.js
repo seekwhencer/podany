@@ -11,9 +11,8 @@
 // legacy playback.updateProgress call.
 
 import { BaseComponent } from '../BaseComponent.js';
+import { artworkUrl, FALLBACK_ARTWORK } from '../Config.js';
 import PlaybackControls from './PlaybackControls.js';
-
-const FALLBACK_ARTWORK = 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22100%22%20height=%22100%22%3E%3Crect%20width=%22100%25%22%20height=%22100%25%22%20fill=%22%2318181b%22/%3E%3C/svg%3E';
 
 export class PlayerBarComponent extends BaseComponent {
     constructor(app, props = {}) {
@@ -129,7 +128,7 @@ export class PlayerBarComponent extends BaseComponent {
         if (episode) {
             this.elTitle.textContent = episode.title || '';
             this.elPodcast.textContent = episode.podcastTitle || 'Podany';
-            if (this.elArtwork && episode.image) this.elArtwork.src = episode.image;
+            if (this.elArtwork && episode.image) this.elArtwork.src = artworkUrl(episode.image, 'full');
             this.el.classList.remove('collapsed');
         } else {
             this.elTitle.textContent = 'Select an episode to play';

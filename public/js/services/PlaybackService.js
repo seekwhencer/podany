@@ -296,16 +296,6 @@ export class PlaybackService {
     }
 
     playEpisode(episode, overrideStartTime) {
-        this.state.currentEpisode = episode;
-        this.state.notify('currentEpisode');
-        this._setStatus('loading');
-        this.syncPlaybackButtons();
-
-        this.audio.pause();
-        if (this.state.ytPlayer && this.state.ytPlayer.stopVideo) {
-            this.state.ytPlayer.stopVideo();
-        }
-
         const savedPos = this.state.playbackPositions[episode.id];
         let startTime = 0;
         if (typeof overrideStartTime === 'number') {
@@ -319,6 +309,17 @@ export class PlaybackService {
             completed: false,
             lastListenedAt: Math.floor(Date.now() / 1000)
         };
+
+        this.state.currentEpisode = episode;
+        this.state.notify('currentEpisode');
+        this._setStatus('loading');
+        this.syncPlaybackButtons();
+
+        this.audio.pause();
+        if (this.state.ytPlayer && this.state.ytPlayer.stopVideo) {
+            this.state.ytPlayer.stopVideo();
+        }
+
         this.state.notify('playbackPositions');
         this.storage.savePositions(this.state.playbackPositions);
 

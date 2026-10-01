@@ -214,6 +214,12 @@ export class EpisodeCardComponent extends BaseComponent {
         return track;
     }
 
+    _buildResumeBadge() {
+        const badge = this.createElement('span', { class: 'ep-resume-time', title: 'Click to resume playback' });
+        if (this.elMeta) this.elMeta.appendChild(badge);
+        this.elResumeBadge = badge;
+    }
+
     _syncProgress() {
         const ep = this.episode;
         if (!ep) return;
@@ -272,6 +278,20 @@ export class EpisodeCardComponent extends BaseComponent {
         this.elCard.classList.toggle('playing', this._isActive());
 
         this._syncProgress();
+
+        if (!this.elResumeBadge && this._isActive()) {
+            this._buildResumeBadge();
+        }
+
+        if (this.elResumeBadge) {
+            const ep = this.episode;
+            const savedPos = this.state.playbackPositions[ep.id];
+            const isActive = this._isActive();
+            const pos = isActive ? (this.state.livePlayback?.currentTime || 0) : (savedPos?.position || 0);
+            if (isActive || pos > 2) {
+                this.elResumeBadge.textContent = `Resumes at ${formatTime(pos)}`;
+            }
+        }
 
         if (this.elPlayBtn) {
             this.elPlayBtn.innerHTML = this._playIconKey();

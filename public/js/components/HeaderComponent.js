@@ -166,6 +166,28 @@ export class HeaderComponent extends BaseComponent {
         // owns the badge; no service writes it into the removed static header.
         this._unsubs.push(this.subscribe('feeds', () => this.updateFeedCount(this.state.feeds.length)));
         this.updateFeedCount(this.state.feeds.length);
+
+        // Tab active state follows the router. The router fires 'routechange' on
+        // document (it has no DOM of its own), so the listener lives on document
+        // like AppShell's route handler; on() tracks it for unmount().
+        this._routeHandler = (event) => this._setActiveTab(this._routeName(event));
+        this.on(document, 'routechange', this._routeHandler);
+        this._setActiveTab(this.router && this.router.current ? this.router.current.route.name : '');
+    }
+
+    _routeName(event) {
+        const route = event && event.detail ? event.detail.route : null;
+        return route && route.name ? route.name : '';
+    }
+
+    // Project the current route onto the tab buttons (§7.3): toggle the active
+    // class on the matching tab, mark the rest inert. Tab names equal route names.
+    _setActiveTab(routeName) {
+        for (const btn of this.elTabs) {
+            const active = btn.dataset.tab === routeName;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        }
     }
 
     setOffline(isOffline) {
