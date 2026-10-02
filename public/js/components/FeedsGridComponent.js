@@ -38,6 +38,12 @@ export class FeedsGridComponent extends BaseComponent {
         this.subscribe('feeds', () => this._render());
         this.subscribe('searchQuery', () => this._render());
         this.subscribe('feedMetadata', () => this._render());
+        // Recent episodes come from `allEpisodes`; the downloading hint from
+        // `downloadingFeeds`. Neither is derived from feedMetadata, so the card
+        // would otherwise stay stuck on the downloading hint after a download
+        // completes (refreshSingleFeed only deep-equals feedMetadata unchanged).
+        this.subscribe('allEpisodes', () => this._render());
+        this.subscribe('downloadingFeeds', () => this._render());
 
         this.on(this.el, ['open-feed', 'unsubscribe-requested', 'play-requested'], (e) => {
             const detail = e.detail || {};

@@ -69,13 +69,15 @@ export class ConfirmModalComponent extends BaseComponent {
     }
 
     close() {
-        // Closing via Escape (closeTopModal) must resolve the pending confirm as
-        // "cancelled" so the awaiting caller is not left hanging.
-        if (!this._open) return;
-        this._open = false;
-        this.emit('confirm-cancelled', { confirm: false });
-        this.elOverlay.classList.add('hidden');
-        if (this.app && this.app.modal) this.app.modal.popModal(this);
+        // Closing via Escape (closeTopModal) or programmatically: resolve the
+        // pending confirm as "cancelled" so the awaiting caller is not left
+        // hanging, then hide. Guard only wraps the emit — hiding (overlay +
+        // escape stack) must always run so the dialog actually disappears.
+        if (this._open) {
+            this._open = false;
+            this.emit('confirm-cancelled', { confirm: false });
+        }
+        this._hide();
     }
 
     // ── Responses (fire CustomEvents, caller reacts) §2.D ─────────────────────
@@ -84,14 +86,21 @@ export class ConfirmModalComponent extends BaseComponent {
         if (!this._open) return;
         this._open = false;
         this.emit('confirm-confirmed', { confirm: true });
-        this.close();
+        this._hide();
     }
 
     cancel() {
         if (!this._open) return;
         this._open = false;
         this.emit('confirm-cancelled', { confirm: false });
-        this.close();
+        this._hide();
+    }
+
+    // ── Hide (overlay + escape stack) ─────────────────────────────────────────
+
+    _hide() {
+        this.elOverlay.classList.add('hidden');
+        if (this.app && this.app.modal) this.app.modal.popModal(this);
     }
 }
 

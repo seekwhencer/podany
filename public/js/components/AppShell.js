@@ -44,6 +44,7 @@ export class AppShell extends BaseComponent {
         this.viewArea = null;
         this._children = [];      // layout children unmounted in onUnmount()
         this._currentView = null;  // currently mounted view (component or stub)
+        this._previousRouteName = null; // route name of the previously swapped view
         this._routeHandler = null;
         this.views = {};           // route name -> factory(app, {route,params}) -> view (Phase 5)
     }
@@ -192,6 +193,21 @@ export class AppShell extends BaseComponent {
 
     // Swap the MainContent view: unmount the previous view, mount the next.
     _swapView(route, params) {
+        // Switching between the feed-backed views (timeline <-> feeds) projects
+        // from app.state, which may be stale. Kick off a server refresh BEFORE
+        // the new view is shown so both render from fresh Feeds + episodes +
+        // positions. FeedsService.refreshAllFeeds dedupes/re-queues concurrent
+        // calls, so firing on every such swap is safe.
+        const prevName = this._previousRouteName;
+        const nextName = route && route.name ? route.name : null;
+        const feedBacked = (n) => n === 'timeline' || n === 'feeds';
+        if (prevName && nextName && prevName !== nextName && feedBacked(prevName) && feedBacked(nextName)) {
+            if (this.app && this.app.feeds && typeof this.app.feeds.refreshAllFeeds === 'function') {
+                this.app.feeds.refreshAllFeeds();
+            }
+        }
+        this._previousRouteName = nextName;
+
         if (this._currentView && typeof this._currentView.unmount === 'function') {
             this._currentView.unmount();
             this._currentView = null;

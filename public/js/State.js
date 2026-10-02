@@ -195,6 +195,20 @@ export class AppState {
             return false;
         }
         if (Array.isArray(a) !== Array.isArray(b)) return false;
+        if (a instanceof Set && b instanceof Set) {
+            if (a.size !== b.size) return false;
+            for (const item of a) {
+                if (!b.has(item)) return false;
+            }
+            return true;
+        }
+        if (a instanceof Map && b instanceof Map) {
+            if (a.size !== b.size) return false;
+            for (const [key, value] of a) {
+                if (!b.has(key) || !this._deepEqual(value, b.get(key))) return false;
+            }
+            return true;
+        }
         const keysA = Object.keys(a);
         const keysB = Object.keys(b);
         if (keysA.length !== keysB.length) return false;

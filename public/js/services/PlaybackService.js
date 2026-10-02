@@ -85,27 +85,47 @@ export class PlaybackService {
     setupAudioEngines() {
         const audio = this.audio;
 
+        // Seek to a pending start position (click on an episode's progress track).
+        // The seek is applied as soon as the element can seek, but only *cleared*
+        // once it actually took effect: a currentTime write is ignored by the
+        // browser when the seekable range is empty even though duration is already
+        // known (loadedmetadata fires before seekable is populated). Clearing
+        // prematurely would drop the seek and restart at 0, so we retry on every
+        // seekable/duration change and on timeupdate until the position is reached,
+        // bounded by a safety deadline so a stuck/invalid target cannot spin.
+        let pendingSeekAnchor = 0;
+        const PENDING_SEEK_DEADLINE_MS = 20000;
         const applyPendingAudioSeek = () => {
-            if (this.state.pendingStartTime === null || this.state.pendingStartTime === undefined || this.state.pendingStartTime <= 0) return;
-            const target = this.state.pendingStartTime;
+            const pending = this.state.pendingStartTime;
+            if (pending === null || pending === undefined || pending <= 0) return;
+            const target = pending;
+            const current = audio.currentTime || 0;
+            if (Math.abs(current - target) <= 3) {
+                this.state.pendingStartTime = null;
+                pendingSeekAnchor = 0;
+                this.state.notify('pendingStartTime');
+                return;
+            }
+            if (pendingSeekAnchor === 0) pendingSeekAnchor = Date.now();
+            if (Date.now() - pendingSeekAnchor > PENDING_SEEK_DEADLINE_MS) {
+                this.state.pendingStartTime = null;
+                pendingSeekAnchor = 0;
+                this.state.notify('pendingStartTime');
+                return;
+            }
             try {
-                if (audio.seekable && audio.seekable.length > 0) {
-                    audio.currentTime = target;
-                    this.state.pendingStartTime = null;
-                    this.state.notify('pendingStartTime');
-                } else if (audio.duration && audio.duration > 0 && isFinite(audio.duration)) {
+                if (audio.duration && audio.duration > 0 && isFinite(audio.duration)) {
                     audio.currentTime = Math.min(target, audio.duration);
-                    this.state.pendingStartTime = null;
-                    this.state.notify('pendingStartTime');
+                } else if (audio.seekable && audio.seekable.length > 0) {
+                    audio.currentTime = target;
                 } else if (audio.readyState >= 1) {
                     audio.currentTime = target;
-                    this.state.pendingStartTime = null;
-                    this.state.notify('pendingStartTime');
                 }
             } catch (_) { }
         };
 
         audio.addEventListener('timeupdate', () => {
+            applyPendingAudioSeek();
             if (this.state.activeEngine === 'audio') this._updateLivePlayback();
         });
         audio.addEventListener('loadedmetadata', () => {
@@ -139,6 +159,15 @@ export class PlaybackService {
             if (this.state.activeEngine === 'audio') {
                 this._setStatus('playing');
             }
+        });
+        // Seekable/duration ranges can become available *after* loadedmetadata;
+        // retry the pending seek so it is not dropped when the first write was
+        // ignored because the range was still empty.
+        audio.addEventListener('seekablechange', () => {
+            applyPendingAudioSeek();
+        });
+        audio.addEventListener('durationchange', () => {
+            applyPendingAudioSeek();
         });
         audio.addEventListener('play', () => {
             if (this.state.activeEngine === 'audio') {

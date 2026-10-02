@@ -136,7 +136,6 @@ export class FeedsService {
 
         this.state.downloadingFeeds.delete(id);
         this.state.notify('downloadingFeeds');
-        if (this.grid) this.grid.feedCards.get(String(id))?.update();
     }
 
     async fetchSingleFeed(target, incomingEpisodes, updatedMetadata) {
